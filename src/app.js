@@ -192,11 +192,10 @@ const activePack = () => {
 function say(phrase) {
   if (!phrase) return;
   const pack = activePack();
-  const { personality, rate, volume } = data.settings;
+  const { personality, volume } = data.settings;
   if (pack && clips.has(pack, personality, phrase.keys)) {
     speech.cancel();
-    // Clip speed also shifts pitch, so keep it to a small range.
-    clips.play(pack, personality, phrase.keys, { rate: clamp(rate, 0.8, 1.25), volume });
+    clips.play(pack, personality, phrase.keys, { volume });
   } else {
     clips.stop();
     speech.speak(phrase.text, voiceOptions());
@@ -266,6 +265,9 @@ function sourceSummary() {
   ].filter(Boolean).join(' · ');
 }
 
+const ICON_PLAY = 'M8 5v14l11-7z';
+const ICON_PAUSE = 'M6 5h4v14H6zM14 5h4v14h-4z';
+
 function renderTimer() {
   const s = data.settings;
   let phase = 'Ready';
@@ -302,7 +304,10 @@ function renderTimer() {
   $('phase').textContent = phase;
   $('clock').textContent = clock;
   $('clock').classList.toggle('warn', warn);
-  $('btn-start').textContent = label;
+  $('btn-start-label').textContent = label;
+  $('btn-start-icon').setAttribute('d', label === 'Pause' ? ICON_PAUSE : ICON_PLAY);
+  // Nothing to reset before a session starts.
+  $('btn-reset').disabled = kind === 'idle';
   $('round-info').textContent = `${s.rounds} × ${mmss(s.roundSec)} rounds · ${mmss(s.restSec)} rest`;
   $('source-info').textContent = sourceSummary();
 }
@@ -444,6 +449,11 @@ function renderSettings() {
   $('coach-blurb').textContent = pack && !packHas(pack, personality)
     ? `${PERSONALITIES[personality].blurb}. Not recorded in ${pack.label} yet`
     : PERSONALITIES[personality].blurb;
+  // Recorded voices always play at their natural speed (see clipplayer), so the slider only
+  // applies to the phone voice.
+  const recorded = Boolean(activePack());
+  $('set-rate').disabled = recorded;
+  $('speed-note').textContent = recorded ? 'Recorded voices use their natural speed' : '';
   $('set-rate').value = s.rate;
   $('set-volume').value = s.volume;
   $('out-rate').textContent = `${s.rate.toFixed(1)}×`;

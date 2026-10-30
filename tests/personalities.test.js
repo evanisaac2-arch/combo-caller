@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   PERSONALITIES, PUSH_MIN_GAP_MS, MAX_ROUNDS,
-  roundCue, momentPhrase, calloutPhrase, gapBetweenMs, clipScript, voiceTuning,
+  roundCue, momentPhrase, calloutPhrase, gapBetweenMs, clipScript, voiceTuning, clipFiles, CLIP_REVISIONS,
 } from '../src/personalities.js';
 import { DEFAULT_SETTINGS } from '../src/storage.js';
 
@@ -74,6 +74,15 @@ test('clip script covers every key a phrase can use, with unique keys', () => {
 test('no clip text says "lead" (TTS reads it as the metal)', () => {
   for (const id of Object.keys(PERSONALITIES)) {
     for (const c of clipScript(id)) assert.doesNotMatch(c.text, /\blead\b/i, `${id}: ${c.text}`);
+  }
+});
+
+test('re-recorded clips: newest file first, then the one it replaces', () => {
+  assert.deepEqual(clipFiles('name-1'), ['name-1']);
+  assert.deepEqual(clipFiles('name-3'), ['name-3.r2', 'name-3']);
+  assert.deepEqual(clipFiles('name-5'), ['name-5.r2', 'name-5']);
+  for (const key of Object.keys(CLIP_REVISIONS)) {
+    assert.ok(clipScript('plain').some((c) => c.key === key), `${key} is a real clip`);
   }
 });
 

@@ -138,6 +138,19 @@ export function gapBetweenMs(key, nextKey) {
   return combo(key) && combo(nextKey) ? 0 : 250;
 }
 
+// Clips re-recorded after a first version shipped. A new revision gets a new file name, so the
+// generator sees it as missing and makes it, while the app keeps playing the previous file until
+// the new one exists. r2: "lead" punches were recorded as "leed", which came out drawn-out.
+export const CLIP_REVISIONS = Object.freeze({ 'name-3': 2, 'name-5': 2 });
+
+// File names (without .mp3) to try for a clip, newest first.
+export function clipFiles(key) {
+  const rev = CLIP_REVISIONS[key] ?? 1;
+  const files = [];
+  for (let r = rev; r >= 1; r--) files.push(r === 1 ? key : `${key}.r${r}`);
+  return files;
+}
+
 // Every clip a voice pack needs for one personality: [{ key, text }].
 export function clipScript(id) {
   const p = personality(id);

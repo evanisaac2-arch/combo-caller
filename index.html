@@ -33,8 +33,14 @@
       <div class="source-info" id="source-info"></div>
 
       <div class="controls">
-        <button id="btn-start" class="btn btn-primary btn-huge">Start</button>
-        <button id="btn-reset" class="btn btn-huge">Reset</button>
+        <button id="btn-reset" class="btn btn-huge btn-icon">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V1.5L7 6l5 4.5V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>
+          <span>Reset</span>
+        </button>
+        <button id="btn-start" class="btn btn-primary btn-huge btn-icon">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path id="btn-start-icon" d="M8 5v14l11-7z"/></svg>
+          <span id="btn-start-label">Start</span>
+        </button>
       </div>
     </section>
 
@@ -118,15 +124,15 @@
       <h2 class="group-title">Coach &amp; voice</h2>
       <div class="group">
         <label class="row-item">
-          <span class="row-label">Coach<small id="coach-blurb"></small></span>
-          <select class="row-select" id="set-personality"></select>
-        </label>
-        <label class="row-item">
           <span class="row-label">Voice</span>
           <select class="row-select" id="set-voice"></select>
         </label>
+        <label class="row-item">
+          <span class="row-label">Coach<small id="coach-blurb"></small></span>
+          <select class="row-select" id="set-personality"></select>
+        </label>
         <label class="row-item col">
-          <span class="row-head"><span class="row-label">Speed</span><output id="out-rate"></output></span>
+          <span class="row-head"><span class="row-label">Speed<small id="speed-note"></small></span><output id="out-rate"></output></span>
           <input type="range" id="set-rate" min="0.5" max="2" step="0.1">
         </label>
         <label class="row-item col">

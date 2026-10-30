@@ -27,7 +27,7 @@ import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PERSONALITIES, clipScript } from '../src/personalities.js';
+import { PERSONALITIES, clipScript, clipFiles } from '../src/personalities.js';
 import {
   createLimiter, retryDelayMs, isDailyLimitMessage, isQuotaError, estimateDays, formatWait, MINUTE,
 } from './ratelimit.mjs';
@@ -73,11 +73,18 @@ const rpd = Number(option('rpd') ?? 50);
 const exists = (path) => access(path).then(() => true, () => false);
 const clock = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
-// Text actually sent for a clip: single digits as words so every engine says them the same way.
+// Text actually sent for a clip: single digits as words so every engine says them the same way,
+// and "lead" spelled properly (the phone TTS gets "leed", but voice services stretch that vowel
+// out; instructionsFor tells them how to say "lead" instead).
+const INPUT_OVERRIDES = { 'name-3': 'lead hook', 'name-5': 'lead uppercut' };
+
 function inputFor(clip) {
   const n = clip.key.match(/^num-(\d)$/)?.[1];
-  return n ? NUMBER_WORDS[n] : clip.text;
+  return n ? NUMBER_WORDS[n] : INPUT_OVERRIDES[clip.key] ?? clip.text;
 }
+
+// Newest file name for a clip (a re-recorded clip gets a new one, see CLIP_REVISIONS).
+const clipPath = (id, personalityId, key) => join(voicesDir, id, personalityId, `${clipFiles(key)[0]}.mp3`);
 
 const kindOf = (clip) => (/^(num|name)-/.test(clip.key) ? 'punch' : clip.key.startsWith('round-') ? 'round' : 'line');
 
@@ -87,6 +94,7 @@ function instructionsFor(personalityId, clip, batchSize = 1) {
     text += batchSize > 1
       ? ' Each line is a single punch callout: say it quickly and crisply.'
       : ' This is a single punch callout: say it quickly and crisply, nothing else.';
+    text += ' "Lead" means the front hand: say it like "leader" (rhymes with "need"), short and clipped, never drawn out.';
   }
   if (batchSize > 1) {
     text += ' You are reading a list of separate lines that will be cut into individual audio clips.'
@@ -231,6 +239,13 @@ async function finish(raw, out, range = null, tempo = 1) {
 
 const tempoFor = (clip) => (kindOf(clip) === 'punch' ? PUNCH_TEMPO : 1);
 
+// Finishes one clip and, for a re-recorded clip, removes the older version it replaces.
+async function finishClip(raw, job, range) {
+  await finish(raw, job.out, range, tempoFor(job.clip));
+  const dir = join(job.out, '..');
+  for (const older of clipFiles(job.clip.key).slice(1)) await rm(join(dir, `${older}.mp3`), { force: true });
+}
+
 // Where each of n lines sits in a batch recording, or null if it can't be told reliably.
 async function findLines(raw, n) {
   const { stdout } = await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', raw]);
@@ -248,7 +263,7 @@ async function makeBatch(limiter, pack, personalityId, jobs, workDir, onClip, st
   await writeFile(raw, await openaiClip(limiter, input, pack.openai, instructionsFor(personalityId, first.clip, jobs.length)));
   stats.requests++;
   if (jobs.length === 1) {
-    await finish(raw, first.out, null, tempoFor(first.clip));
+    await finishClip(raw, first, null);
     onClip();
     return;
   }
@@ -261,7 +276,7 @@ async function makeBatch(limiter, pack, personalityId, jobs, workDir, onClip, st
     return;
   }
   for (let i = 0; i < jobs.length; i++) {
-    await finish(raw, jobs[i].out, ranges[i], tempoFor(jobs[i].clip));
+    await finishClip(raw, jobs[i], ranges[i]);
     onClip();
   }
 }
@@ -273,7 +288,7 @@ async function missingClips(pack) {
   const jobs = [];
   for (const personalityId of Object.keys(PERSONALITIES)) {
     for (const clip of clipScript(personalityId)) {
-      const out = join(voicesDir, packId(pack), personalityId, `${clip.key}.mp3`);
+      const out = clipPath(packId(pack), personalityId, clip.key);
       if (force || !await exists(out)) jobs.push({ personalityId, clip, out, input: inputFor(clip) });
     }
   }
@@ -287,7 +302,7 @@ async function completePersonalities(id) {
   for (const personalityId of Object.keys(PERSONALITIES)) {
     let all = true;
     for (const clip of clipScript(personalityId)) {
-      if (!await exists(join(voicesDir, id, personalityId, `${clip.key}.mp3`))) {
+      if (!await exists(clipPath(id, personalityId, clip.key))) {
         all = false;
         break;
       }
@@ -336,7 +351,7 @@ async function buildPack(pack, jobs, workDir, limiter, stats, onCoachDone = asyn
       for (const job of group) job.raw = join(workDir, `${id}-${personalityId}-${job.clip.key}.wav`);
       await sapiClips(group, pack.sapi, Math.round((PERSONALITIES[personalityId].rate - 1) * 10), workDir);
       for (const job of group) {
-        await finish(job.raw, job.out, null, tempoFor(job.clip));
+        await finishClip(job.raw, job, null);
         onClip();
       }
       await onCoachDone();

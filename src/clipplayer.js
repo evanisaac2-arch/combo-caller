@@ -3,7 +3,7 @@
 // on to the phone's audio output while music plays. Clips live at
 // voices/<pack>/<personality>/<key>.mp3 and are decoded into memory ahead of time.
 
-import { gapBetweenMs } from './personalities.js';
+import { gapBetweenMs, clipFiles } from './personalities.js';
 
 export function createClipPlayer({
   AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext,
@@ -32,7 +32,8 @@ export function createClipPlayer({
   return {
     supported: Boolean(AudioCtx),
 
-    // Fetches and decodes any of these clips not already in memory. Missing clips are skipped;
+    // Fetches and decodes any of these clips not already in memory, trying a re-recorded clip's
+    // newest file first and its older one if that's not there yet. Missing clips are skipped;
     // has() then reports false and the caller falls back to TTS.
     async load(pack, personality, keys) {
       if (!AudioCtx) return;
@@ -40,11 +41,15 @@ export function createClipPlayer({
       await Promise.all(keys.map(async (key) => {
         const k = id(pack, personality, key);
         if (buffers.has(k)) return;
-        try {
-          const res = await fetchClip(`voices/${pack}/${personality}/${key}.mp3`);
-          if (res.ok) buffers.set(k, await ctx.decodeAudioData(await res.arrayBuffer()));
-        } catch {
-          // offline and not cached, or a bad file: leave it out
+        for (const file of clipFiles(key)) {
+          try {
+            const res = await fetchClip(`voices/${pack}/${personality}/${file}.mp3`);
+            if (!res.ok) continue;
+            buffers.set(k, await ctx.decodeAudioData(await res.arrayBuffer()));
+            return;
+          } catch {
+            // offline and not cached, or a bad file: try the next one
+          }
         }
       }));
     },
@@ -53,9 +58,10 @@ export function createClipPlayer({
       return keys.every((key) => buffers.has(id(pack, personality, key)));
     },
 
-    // Plays the clips in order, replacing anything still playing. rate speeds clips up or down
-    // (this also shifts pitch, so callers keep it near 1).
-    play(pack, personality, keys, { rate = 1, volume = 1 } = {}) {
+    // Plays the clips in order, replacing anything still playing. Always at natural speed: Web
+    // Audio can only speed a clip up by raising its pitch, and the clips already have a coach's
+    // cadence built in.
+    play(pack, personality, keys, { volume = 1 } = {}) {
       this.stop();
       const c = ensure();
       if (!c) return;
@@ -68,12 +74,11 @@ export function createClipPlayer({
         if (!buffer) return;
         const src = c.createBufferSource();
         src.buffer = buffer;
-        src.playbackRate.value = rate;
         src.connect(gain);
         src.start(t);
         sources.push(src);
-        t += buffer.duration / rate;
-        if (i < keys.length - 1) t += gapBetweenMs(key, keys[i + 1]) / 1000 / rate;
+        t += buffer.duration;
+        if (i < keys.length - 1) t += gapBetweenMs(key, keys[i + 1]) / 1000;
       });
       suspendAfter((t - c.currentTime) * 1000 + 600);
     },
