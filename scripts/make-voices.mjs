@@ -6,8 +6,15 @@
 //   Options:  --packs male,female   only these packs, in this order
 //             --rpm 10 --rpd 50     your account's request limits (default 10/min, 50/day)
 //             --force               regenerate clips that already exist
+//             --no-batch            one request per clip instead of batches
 //             --provider sapi       Windows built-in voices, for testing the pipeline offline
 //                                   (writes test-* packs; don't publish those)
+//
+// Batching: each request reads a group of lines with long pauses between them, and the recording
+// is cut at those pauses into one clip per line, so a pack takes about 16 requests instead of
+// 174. A batch is only cut when the pauses clearly mark the expected number of lines; otherwise
+// it's re-requested as two halves, down to one line per request, so a bad split never becomes a
+// mislabeled clip.
 //
 // It stays under both limits on its own: requests are spaced for the per-minute limit, and when
 // the day's requests are used up it waits until more are allowed. Every finished clip is saved
@@ -23,6 +30,7 @@ import { PERSONALITIES, clipScript } from '../src/personalities.js';
 import {
   createLimiter, retryDelayMs, isDailyLimitMessage, isQuotaError, estimateDays, formatWait, MINUTE,
 } from './ratelimit.mjs';
+import { parseSilences, lineRanges, chunk } from './split.mjs';
 
 const run = promisify(execFile);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -42,6 +50,9 @@ const NUMBER_WORDS = { 1: 'One', 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five', 6: 
 const OPENAI_MODEL = 'gpt-4o-mini-tts';
 const OPENAI_URL = `${process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1'}/audio/speech`;
 const MAX_ATTEMPTS = 6; // per clip, for errors other than rate limits
+// Lines per request, by kind of clip. Longer lines get smaller batches, so a batch that won't
+// split cleanly costs less to redo.
+const BATCH_SIZE = { punch: 12, round: 15, line: 8 };
 
 const args = process.argv.slice(2);
 const option = (name) => {
@@ -51,6 +62,7 @@ const option = (name) => {
 const provider = option('provider') ?? 'openai';
 const onlyPacks = option('packs')?.split(',');
 const force = args.includes('--force');
+const batching = !args.includes('--no-batch');
 const rpm = Number(option('rpm') ?? 10);
 const rpd = Number(option('rpd') ?? 50);
 
@@ -63,10 +75,37 @@ function inputFor(clip) {
   return n ? NUMBER_WORDS[n] : clip.text;
 }
 
-function instructionsFor(personalityId, clip) {
-  const base = PERSONALITIES[personalityId].instructions;
-  const isPunch = /^(num|name)-/.test(clip.key);
-  return isPunch ? `${base} This is a single punch callout: say it quickly and crisply, nothing else.` : base;
+const kindOf = (clip) => (/^(num|name)-/.test(clip.key) ? 'punch' : clip.key.startsWith('round-') ? 'round' : 'line');
+
+function instructionsFor(personalityId, clip, batchSize = 1) {
+  let text = PERSONALITIES[personalityId].instructions;
+  if (kindOf(clip) === 'punch') {
+    text += batchSize > 1
+      ? ' Each line is a single punch callout: say it quickly and crisply.'
+      : ' This is a single punch callout: say it quickly and crisply, nothing else.';
+  }
+  if (batchSize > 1) {
+    text += ' You are reading a list of separate lines that will be cut into individual audio clips.'
+      + ' Read each line exactly as written, as its own complete utterance in the same tone, then stay'
+      + ' completely silent for two full seconds before the next line. Never add, skip or number lines.';
+  }
+  return text;
+}
+
+// One line per paragraph, each ending in punctuation so it's read as a finished sentence.
+const batchInput = (jobs) => jobs.map((j) => (/[.!?]$/.test(j.input) ? j.input : `${j.input}.`)).join('\n\n');
+
+// Requests needed for these clips, assuming every batch splits cleanly.
+function requestsFor(jobs) {
+  if (!batching) return jobs.length;
+  let n = 0;
+  for (const personalityId of Object.keys(PERSONALITIES)) {
+    for (const kind of Object.keys(BATCH_SIZE)) {
+      const count = jobs.filter((j) => j.personalityId === personalityId && kindOf(j.clip) === kind).length;
+      n += Math.ceil(count / BATCH_SIZE[kind]);
+    }
+  }
+  return n;
 }
 
 // ---------- OpenAI with rate limits ----------
@@ -168,17 +207,56 @@ async function sapiClips(jobs, voice, rate, workDir) {
 
 // ---------- shared ----------
 
-// Trim leading/trailing silence, mono, small mp3. Written to a temp name and renamed, so a clip
-// interrupted halfway is never mistaken for a finished one.
-async function finish(raw, out) {
+// Trim leading/trailing silence, mono, small mp3; optionally only the { from, to } part of the
+// recording. Written to a temp name and renamed, so a clip interrupted halfway is never mistaken
+// for a finished one.
+async function finish(raw, out, range = null) {
   const trim = 'silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.02';
   const part = out.replace(/\.mp3$/, '.part.mp3');
+  // The cut goes before -i so ffmpeg only reads that slice and the filters see all of it; as
+  // output options, -to can end the output before the reversed trim is done and clip the line.
+  const cut = range ? ['-ss', range.from.toFixed(3), '-to', range.to.toFixed(3)] : [];
   await run('ffmpeg', [
-    '-y', '-loglevel', 'error', '-i', raw,
+    '-y', '-loglevel', 'error', ...cut, '-i', raw,
     '-af', `${trim},areverse,${trim},areverse`,
     '-ac', '1', '-ar', '24000', '-b:a', '48k', part,
   ]);
   await rename(part, out);
+}
+
+// Where each of n lines sits in a batch recording, or null if it can't be told reliably.
+async function findLines(raw, n) {
+  const { stdout } = await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', raw]);
+  const total = Number(stdout.trim());
+  const { stderr } = await run('ffmpeg', ['-hide_banner', '-i', raw, '-af', 'silencedetect=noise=-40dB:d=0.25', '-f', 'null', '-'], { maxBuffer: 1 << 24 });
+  return lineRanges(parseSilences(stderr, total), total, n);
+}
+
+// Makes these clips (same personality and kind) with as few requests as possible: the whole group
+// in one request, cut at the pauses; if that doesn't split cleanly, each half on its own.
+async function makeBatch(limiter, pack, personalityId, jobs, workDir, onClip, stats) {
+  const first = jobs[0];
+  const raw = join(workDir, `${packId(pack)}-${personalityId}-${first.clip.key}-x${jobs.length}.mp3`);
+  const input = jobs.length === 1 ? first.input : batchInput(jobs);
+  await writeFile(raw, await openaiClip(limiter, input, pack.openai, instructionsFor(personalityId, first.clip, jobs.length)));
+  stats.requests++;
+  if (jobs.length === 1) {
+    await finish(raw, first.out);
+    onClip();
+    return;
+  }
+  const ranges = await findLines(raw, jobs.length);
+  if (!ranges) {
+    stats.resplits++;
+    const mid = Math.ceil(jobs.length / 2);
+    await makeBatch(limiter, pack, personalityId, jobs.slice(0, mid), workDir, onClip, stats);
+    await makeBatch(limiter, pack, personalityId, jobs.slice(mid), workDir, onClip, stats);
+    return;
+  }
+  for (let i = 0; i < jobs.length; i++) {
+    await finish(raw, jobs[i].out, ranges[i]);
+    onClip();
+  }
 }
 
 const packId = (pack) => (provider === 'sapi' ? `test-${pack.id}` : pack.id);
@@ -217,27 +295,34 @@ async function updateIndex(labels) {
   return listed;
 }
 
-async function buildPack(pack, jobs, workDir, limiter) {
+async function buildPack(pack, jobs, workDir, limiter, stats) {
   const id = packId(pack);
   const total = jobs.length;
   let made = 0;
   const progress = () => process.stdout.write(`\r${id}: ${made}/${total} clips made`);
+  const onClip = () => {
+    made++;
+    progress();
+  };
   progress();
   for (const personalityId of Object.keys(PERSONALITIES)) {
     const group = jobs.filter((j) => j.personalityId === personalityId);
     if (!group.length) continue;
     await mkdir(join(voicesDir, id, personalityId), { recursive: true });
-    for (const job of group) job.raw = join(workDir, `${id}-${personalityId}-${job.clip.key}.${provider === 'sapi' ? 'wav' : 'mp3'}`);
     if (provider === 'sapi') {
+      for (const job of group) job.raw = join(workDir, `${id}-${personalityId}-${job.clip.key}.wav`);
       await sapiClips(group, pack.sapi, Math.round((PERSONALITIES[personalityId].rate - 1) * 10), workDir);
-    }
-    for (const job of group) {
-      if (provider === 'openai') {
-        await writeFile(job.raw, await openaiClip(limiter, job.input, pack.openai, instructionsFor(personalityId, job.clip)));
+      for (const job of group) {
+        await finish(job.raw, job.out);
+        onClip();
       }
-      await finish(job.raw, job.out);
-      made++;
-      progress();
+      continue;
+    }
+    for (const kind of Object.keys(BATCH_SIZE)) {
+      const ofKind = group.filter((j) => kindOf(j.clip) === kind);
+      for (const batch of chunk(ofKind, batching ? BATCH_SIZE[kind] : 1)) {
+        await makeBatch(limiter, pack, personalityId, batch, workDir, onClip, stats);
+      }
     }
   }
   process.stdout.write('\n');
@@ -263,29 +348,33 @@ async function main() {
   const limiter = createLimiter({ rpm, rpd, history: provider === 'openai' ? await loadUsage() : [] });
 
   if (provider === 'openai') {
-    const days = estimateDays(remaining, rpd, limiter.usedToday());
-    console.log(`${remaining} clips to make across ${plan.filter((p) => p.jobs.length).length} pack(s).`);
+    const requests = plan.reduce((n, p) => n + requestsFor(p.jobs), 0);
+    const days = estimateDays(requests, rpd, limiter.usedToday());
+    console.log(`${remaining} clips to make across ${plan.filter((p) => p.jobs.length).length} pack(s), in about ${requests} requests${batching ? ' (batched)' : ''}.`);
     if (remaining) {
       console.log(`Limits: ${rpm} per minute, ${rpd} per day (${limiter.usedToday()} used in the last 24 h).`);
-      const batchMin = Math.ceil(Math.min(remaining, rpd) / rpm);
-      console.log(`That's about ${days} day${days === 1 ? '' : 's'}; each day's batch takes roughly ${batchMin} minute${batchMin === 1 ? '' : 's'}.`);
+      console.log(`That's about ${days} day${days === 1 ? '' : 's'}, a bit more if some batches have to be redone.`);
       console.log('Packs become usable one at a time as each finishes.\n');
     }
   }
 
   const workDir = await mkdtemp(join(tmpdir(), 'combo-voices-'));
   const labels = new Map(packs.map((p) => [packId(p), provider === 'sapi' ? `Test: ${p.label}` : p.label]));
+  const stats = { requests: 0, resplits: 0 };
   try {
     for (const { pack, jobs } of plan) {
       if (!jobs.length) {
         console.log(`${packId(pack)}: already complete`);
         continue;
       }
-      await buildPack(pack, jobs, workDir, limiter);
+      await buildPack(pack, jobs, workDir, limiter, stats);
       const listed = await updateIndex(labels);
       console.log(`[${clock()}] ${packId(pack)} done. Ready to publish: ${listed.map((p) => p.id).join(', ')}`);
     }
     const listed = await updateIndex(labels);
+    if (provider === 'openai') {
+      console.log(`${stats.requests} requests made; ${stats.resplits} batch${stats.resplits === 1 ? '' : 'es'} had to be split up and redone.`);
+    }
     console.log(`voices/index.json lists: ${listed.map((p) => p.id).join(', ') || 'nothing'}`);
   } finally {
     await rm(workDir, { recursive: true, force: true });
