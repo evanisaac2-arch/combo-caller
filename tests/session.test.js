@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSession, resolveCombos, ROUND_SOON_MS } from '../src/session.js';
-import { STARTER_COMBOS } from '../src/combos.js';
+import { buildSession, currentDrill, resolveCombos, ROUND_SOON_MS } from '../src/session.js';
+import { STARTER_COMBOS, PRESET_DRILLS } from '../src/combos.js';
 import { DEFAULT_SETTINGS } from '../src/storage.js';
 
 const settings = (over = {}) => ({ ...DEFAULT_SETTINGS, ...over });
@@ -47,13 +47,24 @@ test('no combos means a plain round timer', () => {
   assert.equal(events.at(-1).type, 'done');
 });
 
-test('resolveCombos: starter set, a saved drill, unknown drill, empty drill', () => {
+test('resolveCombos: selected drill, deleted drill, empty drill, no drills at all', () => {
   const drills = [
     { id: 'a', name: 'Jab work', combos: ['1', '1-1', 'oops'] },
     { id: 'b', name: 'Empty', combos: [] },
+    { id: 'c', name: 'Hooks', combos: ['3'] },
   ];
-  assert.equal(resolveCombos(settings({ source: 'starter' }), drills).length, STARTER_COMBOS.length);
+  assert.deepEqual(resolveCombos(settings({ source: 'c' }), drills), [[3]]);
   assert.deepEqual(resolveCombos(settings({ source: 'a' }), drills), [[1], [1, 1]]);
-  assert.equal(resolveCombos(settings({ source: 'gone' }), drills).length, STARTER_COMBOS.length);
   assert.deepEqual(resolveCombos(settings({ source: 'b' }), drills), []);
+  // A deleted (unknown) drill falls back to the first drill, matching what the Timer page highlights.
+  assert.equal(currentDrill(settings({ source: 'gone' }), drills).id, 'a');
+  assert.deepEqual(resolveCombos(settings({ source: 'gone' }), drills), [[1], [1, 1]]);
+  assert.equal(currentDrill(settings(), []), null);
+  assert.equal(resolveCombos(settings(), []).length, STARTER_COMBOS.length);
+});
+
+test('the default source is the Starter set preset', () => {
+  const drills = PRESET_DRILLS.map((d) => ({ ...d }));
+  assert.equal(currentDrill(settings(), drills).name, 'Starter set');
+  assert.equal(resolveCombos(settings(), drills).length, STARTER_COMBOS.length);
 });

@@ -34,6 +34,28 @@ test('presets are added to data saved before presets existed, keeping user drill
   assert.deepEqual(createStorage(backend).load().drills.map((d) => d.id), ['mine', ...presetIds]);
 });
 
+test('upgrade from the five-preset version: Starter set is added first, old source migrated', () => {
+  const backend = memoryBackend();
+  const five = PRESET_DRILLS.filter((d) => d.id !== 'preset-starter');
+  backend.setItem(STORAGE_KEY, JSON.stringify({
+    settings: { ...DEFAULT_SETTINGS, source: 'starter' },
+    drills: [...five.slice(1), { id: 'mine', name: 'Mine', combos: ['1-2'] }], // user deleted one preset
+    presetsSeeded: true,
+  }));
+  const { settings, drills } = createStorage(backend).load();
+  assert.equal(settings.source, 'preset-starter');
+  assert.deepEqual(drills.map((d) => d.id), ['preset-starter', ...five.slice(1).map((d) => d.id), 'mine']);
+});
+
+test('a deleted Starter set stays deleted', () => {
+  const backend = memoryBackend();
+  const store = createStorage(backend);
+  const data = store.load();
+  data.drills = data.drills.filter((d) => d.id !== 'preset-starter');
+  store.save(data);
+  assert.equal(createStorage(backend).load().drills.some((d) => d.id === 'preset-starter'), false);
+});
+
 test('loading presets does not let edits leak into the shared preset list', () => {
   const { drills } = createStorage(memoryBackend()).load();
   drills[0].combos.push('6-6');

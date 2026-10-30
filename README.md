@@ -13,11 +13,13 @@ backend, no build step and no dependencies.
   and a single jab half as long (never under 1 s).
 - Numbers (`1 2 3`) or names (`jab, cross, lead hook`).
   1 jab · 2 cross · 3 lead hook · 4 rear hook · 5 lead uppercut · 6 rear uppercut.
-- Combos from the built-in starter set or saved drill lists (Combo Builder: tap 1–6 or
-  type `1-2-3`). Random or in order, or repeat one combo for the whole round.
-- Five preset drill lists to start with: Jab & cross, Lead hook, Rear hook, Uppercuts, Long
-  combos (`PRESET_DRILLS` in `src/combos.js`). They're normal saved drills, so you can edit or
-  delete them; a deleted preset doesn't come back.
+- Combos come from saved drill lists, picked with one tap on the Timer page (Combo Builder: tap
+  1–6 or type `1-2-3`). Random or in order, or repeat one combo for the whole round.
+- Six preset drill lists to start with: Starter set, Jab & cross, Lead hook, Rear hook,
+  Uppercuts, Long combos (`PRESET_DRILLS` in `src/combos.js`). They're normal saved drills, so
+  you can edit or delete them; a deleted preset doesn't come back. Presets added in a later
+  version are given to existing users once. If every drill is deleted, the starter combos are
+  used.
 - Voice picker (installed English TTS voices only), rate and volume. "Lead" is spoken as
   "leed" so engines don't say the metal.
 - Coach personality: Plain (just combos), Encouraging, Stoic or Drill sergeant. A personality

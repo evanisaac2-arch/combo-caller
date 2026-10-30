@@ -8,12 +8,17 @@ export const WARNING_SEC = 10;
 // is long enough to fit it.
 export const ROUND_SOON_MS = 3500;
 
-// Combos (as punch arrays) for the selected source. An unknown drill falls back to the starter set;
-// a known drill with no valid combos returns [] so the UI can say so.
+// The drill that will be called out: the selected one, else the first drill (the selected one may
+// have been deleted). null only when there are no drills at all.
+export function currentDrill(settings, drills) {
+  return drills.find((d) => d.id === settings.source) ?? drills[0] ?? null;
+}
+
+// Combos (as punch arrays) for the current drill, or the starter combos when there are no drills.
+// A drill with no valid combos returns [] so the UI can say so.
 export function resolveCombos(settings, drills) {
-  const drill = settings.source !== 'starter' ? drills.find((d) => d.id === settings.source) : null;
-  const list = drill ? drill.combos : STARTER_COMBOS;
-  return list.map(parseCombo).filter(Boolean);
+  const drill = currentDrill(settings, drills);
+  return (drill ? drill.combos : STARTER_COMBOS).map(parseCombo).filter(Boolean);
 }
 
 export function buildSession(settings, combos, { rng = Math.random } = {}) {

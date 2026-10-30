@@ -22,7 +22,9 @@ export const STARTER_COMBOS = Object.freeze([
 ]);
 
 // Drill lists every user starts with. They're ordinary saved drills, so they can be edited or deleted.
+// STARTER_COMBOS doubles as the fallback when no drills exist at all.
 export const PRESET_DRILLS = Object.freeze([
+  { id: 'preset-starter', name: 'Starter set', combos: [...STARTER_COMBOS] },
   { id: 'preset-jab-cross', name: 'Jab & cross', combos: ['1', '1-1', '1-2', '1-1-2', '2-1-2', '1-2-1-2'] },
   { id: 'preset-lead-hook', name: 'Lead hook', combos: ['1-3', '1-2-3', '3-2', '1-1-3', '2-3-2', '1-2-3-2'] },
   { id: 'preset-rear-hook', name: 'Rear hook', combos: ['1-4', '3-4', '1-3-4', '1-2-3-4', '5-4'] },

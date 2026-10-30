@@ -2,8 +2,8 @@
 // the UI. Everything platform-specific lives in its own module so a native wrapper can swap it.
 
 import { TimerEngine } from './timer.js';
-import { buildSession, resolveCombos, WARNING_SEC } from './session.js';
-import { PUNCH_NAMES, STARTER_COMBOS, parseCombo, formatCombo, comboNames, comboSpeech, calloutGapMs } from './combos.js';
+import { buildSession, currentDrill, resolveCombos, WARNING_SEC } from './session.js';
+import { PUNCH_NAMES, parseCombo, formatCombo, comboNames, comboSpeech, calloutGapMs } from './combos.js';
 import { PERSONALITIES, personalityLine, calloutLine, voiceTuning } from './personalities.js';
 import { createStorage } from './storage.js';
 import { createSpeech } from './speech.js';
@@ -82,7 +82,7 @@ function startPause() {
   if (!isActive()) {
     const combos = resolveCombos(data.settings, data.drills);
     if (!combos.length) {
-      setBanner('combos', 'The selected drill has no combos. Add some on the Combos tab, or pick the starter set in Settings.');
+      setBanner('combos', 'The selected drill has no combos. Add some on the Combos tab, or pick another drill.');
       return;
     }
     setBanner('combos', null);
@@ -190,15 +190,12 @@ function showCombo(punches) {
 
 // ---------- timer view ----------
 
-function sourceName(id) {
-  if (id === 'starter') return 'Starter set';
-  return data.drills.find((d) => d.id === id)?.name ?? 'Starter set';
-}
+const drillNow = () => currentDrill(data.settings, data.drills);
 
 function sourceSummary() {
   const s = data.settings;
   return [
-    sourceName(s.source),
+    drillNow()?.name ?? 'Starter combos',
     s.order === 'inorder' ? 'in order' : 'random',
     s.repeatOne ? 'one combo per round' : null,
     `every ${s.intervalSec}s${s.scaleByLength ? '+' : ''}`,
@@ -250,9 +247,8 @@ function renderTimer() {
 
 // Drill buttons on the Timer page: one tap picks what the next session calls out.
 function renderChips() {
-  const current = data.drills.some((d) => d.id === data.settings.source) ? data.settings.source : 'starter';
-  const options = [{ id: 'starter', name: 'Starter set' }, ...data.drills];
-  $('drill-chips').replaceChildren(...options.map(({ id, name }) => {
+  const current = drillNow()?.id;
+  $('drill-chips').replaceChildren(...data.drills.map(({ id, name }) => {
     const btn = document.createElement('button');
     btn.className = 'btn chip';
     btn.setAttribute('role', 'radio');
@@ -361,7 +357,8 @@ function buildPersonalities() {
 }
 
 function sourceOptions() {
-  return [new Option('Starter set', 'starter'), ...data.drills.map((d) => new Option(d.name, d.id))];
+  if (!data.drills.length) return [new Option('No drills: using the starter combos', '')];
+  return data.drills.map((d) => new Option(d.name, d.id));
 }
 
 function renderSettings() {
@@ -373,7 +370,7 @@ function renderSettings() {
   }
   const source = $('set-source');
   source.replaceChildren(...sourceOptions());
-  source.value = data.drills.some((d) => d.id === s.source) ? s.source : 'starter';
+  source.value = drillNow()?.id ?? '';
   $('set-rate').value = s.rate;
   $('set-volume').value = s.volume;
   $('out-rate').textContent = `${s.rate.toFixed(1)}×`;
@@ -437,7 +434,6 @@ function buildKeypad() {
     builder.push(Number(btn.dataset.punch));
     renderBuilder();
   });
-  $('starter-list').replaceChildren(...STARTER_COMBOS.map((c) => comboRow(c)));
 }
 
 function addCombo(punches) {
@@ -534,8 +530,8 @@ function bindCombos() {
       if (!confirmDiscard()) return;
     } else {
       if (!confirm(`Delete “${editing.name}”?`)) return;
+      // If it was the selected drill, the first remaining drill takes over (see currentDrill).
       data.drills = data.drills.filter((d) => d.id !== editing.id);
-      if (data.settings.source === editing.id) data.settings.source = 'starter';
       save();
     }
     editing = blankDrill();

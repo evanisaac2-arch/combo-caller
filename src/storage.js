@@ -4,6 +4,7 @@
 import { PRESET_DRILLS } from './combos.js';
 
 export const STORAGE_KEY = 'combo-caller:v1';
+export const STARTER_DRILL_ID = 'preset-starter';
 
 export const DEFAULT_SETTINGS = Object.freeze({
   roundSec: 180,
@@ -14,7 +15,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   intervalSec: 5,
   scaleByLength: false,
   style: 'numbers', // numbers | names
-  source: 'starter', // 'starter' or a drill id
+  source: 'preset-starter', // a drill id
   order: 'random', // random | inorder
   repeatOne: false,
   voiceURI: '',
@@ -32,6 +33,27 @@ const isDrill = (d) =>
   Array.isArray(d.combos) &&
   d.combos.every((c) => typeof c === 'string');
 
+// Presets this user has already been given. Older saves only had a presetsSeeded flag, which
+// meant the original five.
+const LEGACY_PRESET_IDS = ['preset-jab-cross', 'preset-lead-hook', 'preset-rear-hook', 'preset-uppercuts', 'preset-long'];
+
+function seededIds(data) {
+  if (!isObject(data)) return new Set();
+  if (Array.isArray(data.seededPresets)) return new Set(data.seededPresets);
+  return new Set(data.presetsSeeded ? LEGACY_PRESET_IDS : []);
+}
+
+// Each preset is added once, so one the user deletes stays deleted. A preset added in a later
+// version goes in its preset-list position, ahead of the presets that follow it.
+function seedPresets(drills, seeded) {
+  PRESET_DRILLS.forEach((preset, i) => {
+    if (seeded.has(preset.id) || drills.some((d) => d.id === preset.id)) return;
+    const laterIds = PRESET_DRILLS.slice(i + 1).map((p) => p.id);
+    const at = drills.findIndex((d) => laterIds.includes(d.id));
+    drills.splice(at === -1 ? drills.length : at, 0, structuredClone(preset));
+  });
+}
+
 export function createStorage(backend = globalThis.localStorage) {
   return {
     load() {
@@ -47,20 +69,17 @@ export function createStorage(backend = globalThis.localStorage) {
       for (const key of Object.keys(DEFAULT_SETTINGS)) {
         if (typeof stored[key] === typeof DEFAULT_SETTINGS[key]) settings[key] = stored[key];
       }
+      // The starter set used to be a built-in source rather than a drill.
+      if (settings.source === 'starter') settings.source = STARTER_DRILL_ID;
       const drills = isObject(data) && Array.isArray(data.drills) ? data.drills.filter(isDrill) : [];
-      // Presets are added once (also for data saved before presets existed); after the first save
-      // the flag is set, so a preset the user deletes stays deleted.
-      if (!(isObject(data) && data.presetsSeeded)) {
-        for (const preset of PRESET_DRILLS) {
-          if (!drills.some((d) => d.id === preset.id)) drills.push(structuredClone(preset));
-        }
-      }
+      seedPresets(drills, seededIds(data));
       return { settings, drills };
     },
 
     save({ settings, drills }) {
       try {
-        backend.setItem(STORAGE_KEY, JSON.stringify({ settings, drills, presetsSeeded: true }));
+        const seededPresets = PRESET_DRILLS.map((p) => p.id);
+        backend.setItem(STORAGE_KEY, JSON.stringify({ settings, drills, seededPresets }));
         return true;
       } catch {
         return false;
