@@ -2,7 +2,8 @@
 // personality, in each voice below. Output goes to voices/<pack>/<personality>/<key>.mp3 plus
 // voices/index.json, which the app reads. Needs ffmpeg on PATH.
 //
-//   OpenAI (the real packs):  set OPENAI_API_KEY, then  npm run voices
+//   OpenAI (the real packs):  set OPENAI_API_KEY, then  node scripts/make-voices.mjs
+//   (or npm run voices, where PowerShell allows npm's launcher script)
 //   Options:  --packs male,female   only these packs, in this order
 //             --rpm 10 --rpd 50     your account's request limits (default 10/min, 50/day)
 //             --force               regenerate clips that already exist
@@ -121,7 +122,7 @@ function announceWait(ms, reason) {
   if (reason === 'day') {
     const until = new Date(Date.now() + ms).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
     console.log(`\n[${clock()}] Daily limit reached (${rpd} per day). Waiting until about ${until} (${formatWait(ms)}).`);
-    console.log('  Finished clips are saved. You can leave this open, or close it and run "npm run voices" again later.');
+    console.log('  Finished clips are saved. You can leave this open, or close it and run "node scripts/make-voices.mjs" again later.');
   } else if (ms > MINUTE) {
     console.log(`\n[${clock()}] Rate limited. Waiting ${formatWait(ms)}, then continuing.`);
   }
@@ -383,6 +384,6 @@ async function main() {
 
 main().catch((err) => {
   console.error(`\n${err.message}`);
-  console.error('Finished clips are kept. Fix the problem above, then run "npm run voices" again to continue.');
+  console.error('Finished clips are kept. Fix the problem above, then run "node scripts/make-voices.mjs" again to continue.');
   process.exit(1);
 });
