@@ -5,7 +5,7 @@
 // Voice-pack clips aren't precached: they're cached as they're fetched, so only packs you use
 // take up space.
 
-const CACHE = 'combo-caller-v10';
+const CACHE = 'combo-caller-v11';
 const ASSETS = [
   './',
   'index.html',
