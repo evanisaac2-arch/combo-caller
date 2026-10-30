@@ -73,63 +73,68 @@
     </section>
 
     <!-- Settings -->
-    <section class="view" data-view="settings" hidden>
-      <p class="msg" id="settings-note" hidden>Timer and callout changes apply after you Reset.</p>
+    <section class="view settings" data-view="settings" hidden>
+      <p class="msg" id="settings-note" hidden>Changes apply after you Reset.</p>
 
-      <h2>Timer</h2>
-      <div id="steppers-timer"></div>
-      <label class="toggle"><input type="checkbox" id="set-warning"><span>10-second warning</span></label>
-
-      <h2>Callouts</h2>
-      <div id="steppers-callouts"></div>
-      <label class="toggle"><input type="checkbox" id="set-scale"><span>Wait longer after longer combos</span></label>
-      <label class="toggle"><input type="checkbox" id="set-repeat"><span>Repeat one combo for the whole round</span></label>
-
-      <div class="field-label">Call out as</div>
-      <div class="segmented">
-        <label><input type="radio" name="style" value="numbers"><span>Numbers<small>1-2-3</small></span></label>
-        <label><input type="radio" name="style" value="names"><span>Names<small>jab, cross…</small></span></label>
+      <h2 class="group-title">Rounds</h2>
+      <div class="group">
+        <div class="row-item" data-stepper="roundSec"></div>
+        <div class="row-item" data-stepper="restSec"></div>
+        <div class="row-item" data-stepper="rounds"></div>
+        <div class="row-item" data-stepper="getReadySec"></div>
+        <label class="row-item">
+          <span class="row-label">10-second warning</span>
+          <input type="checkbox" class="switch" id="set-warning">
+        </label>
       </div>
 
-      <div class="field-label">Order</div>
-      <div class="segmented">
-        <label><input type="radio" name="order" value="random"><span>Random</span></label>
-        <label><input type="radio" name="order" value="inorder"><span>In order</span></label>
+      <h2 class="group-title">Callouts</h2>
+      <div class="group">
+        <div class="row-item" data-stepper="intervalSec"></div>
+        <div class="row-item">
+          <span class="row-label">Call out as</span>
+          <span class="seg">
+            <label><input type="radio" name="style" value="numbers"><span>1-2-3</span></label>
+            <label><input type="radio" name="style" value="names"><span>Names</span></label>
+          </span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Order</span>
+          <span class="seg">
+            <label><input type="radio" name="order" value="random"><span>Random</span></label>
+            <label><input type="radio" name="order" value="inorder"><span>In order</span></label>
+          </span>
+        </div>
+        <label class="row-item">
+          <span class="row-label">Longer wait after longer combos</span>
+          <input type="checkbox" class="switch" id="set-scale">
+        </label>
+        <label class="row-item">
+          <span class="row-label">Same combo all round</span>
+          <input type="checkbox" class="switch" id="set-repeat">
+        </label>
       </div>
 
-      <label class="field">
-        <span>Combos from</span>
-        <select id="set-source"></select>
-      </label>
-
-      <h2>Voice</h2>
-      <div class="field-label">Coach</div>
-      <div class="segmented grid2" id="personalities"></div>
-
-      <label class="field">
-        <span>Voice (English)</span>
-        <select id="set-voice"></select>
-      </label>
-      <details class="hint-box">
-        <summary>Want a male or female voice?</summary>
-        <p>On Android, Chrome uses the voice Android's text-to-speech is set to for each accent, so male or female is picked there:</p>
-        <ol>
-          <li>Open Android <b>Settings</b> and search <b>Text-to-speech</b>.</li>
-          <li>Tap the gear next to <b>Speech Services by Google</b>.</li>
-          <li><b>Install voice data</b> → <b>English (United States)</b> (or another accent).</li>
-          <li>Pick a voice; tap it to hear it. Then reopen this app.</li>
-        </ol>
-        <p>Each accent in the list above can have its own voice, so you can set, say, US to female and UK to male and switch here.</p>
-      </details>
-      <label class="field">
-        <span>Rate <output id="out-rate"></output></span>
-        <input type="range" id="set-rate" min="0.5" max="2" step="0.1">
-      </label>
-      <label class="field">
-        <span>Volume <output id="out-volume"></output></span>
-        <input type="range" id="set-volume" min="0" max="1" step="0.05">
-      </label>
-      <button id="btn-test-voice" class="btn btn-block">Test voice</button>
+      <h2 class="group-title">Coach &amp; voice</h2>
+      <div class="group">
+        <label class="row-item">
+          <span class="row-label">Coach<small id="coach-blurb"></small></span>
+          <select class="row-select" id="set-personality"></select>
+        </label>
+        <label class="row-item">
+          <span class="row-label">Voice</span>
+          <select class="row-select" id="set-voice"></select>
+        </label>
+        <label class="row-item col">
+          <span class="row-head"><span class="row-label">Speed</span><output id="out-rate"></output></span>
+          <input type="range" id="set-rate" min="0.5" max="2" step="0.1">
+        </label>
+        <label class="row-item col">
+          <span class="row-head"><span class="row-label">Volume</span><output id="out-volume"></output></span>
+          <input type="range" id="set-volume" min="0" max="1" step="0.05">
+        </label>
+        <button class="row-item row-action" id="btn-test-voice">Test voice</button>
+      </div>
     </section>
   </main>
 

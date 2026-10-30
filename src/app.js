@@ -271,26 +271,28 @@ function bindChips() {
 
 // ---------- settings view ----------
 
+// Each fills the settings row marked data-stepper="<key>".
 const STEPPERS = [
-  { key: 'roundSec', label: 'Round length', step: 30, min: 30, max: 900, format: mmss, group: 'timer' },
-  { key: 'restSec', label: 'Rest length', step: 15, min: 15, max: 300, format: mmss, group: 'timer' },
-  { key: 'rounds', label: 'Rounds', step: 1, min: 1, max: 30, format: String, group: 'timer' },
-  { key: 'getReadySec', label: 'Get-ready countdown', step: 5, min: 0, max: 60, format: (v) => (v ? `${v}s` : 'Off'), group: 'timer' },
-  { key: 'intervalSec', label: 'Callout interval', step: 1, min: 2, max: 10, format: (v) => `${v}s`, group: 'callouts' },
+  { key: 'roundSec', label: 'Round length', step: 30, min: 30, max: 900, format: mmss },
+  { key: 'restSec', label: 'Rest', step: 15, min: 15, max: 300, format: mmss },
+  { key: 'rounds', label: 'Rounds', step: 1, min: 1, max: 30, format: String },
+  { key: 'getReadySec', label: 'Get ready', step: 5, min: 0, max: 60, format: (v) => (v ? `${v}s` : 'Off') },
+  { key: 'intervalSec', label: 'Callout every', step: 1, min: 2, max: 10, format: (v) => `${v}s` },
 ];
 
 const TOGGLES = { 'set-warning': 'warning', 'set-scale': 'scaleByLength', 'set-repeat': 'repeatOne' };
 
 function buildSteppers() {
   for (const cfg of STEPPERS) {
-    const row = document.createElement('div');
-    row.className = 'stepper';
+    const row = document.querySelector(`[data-stepper="${cfg.key}"]`);
     row.innerHTML = `
-      <span class="stepper-label"></span>
-      <button class="btn step minus" data-dir="-1">−</button>
-      <output class="stepper-value"></output>
-      <button class="btn step plus" data-dir="1">+</button>`;
-    row.querySelector('.stepper-label').textContent = cfg.label;
+      <span class="row-label"></span>
+      <span class="stepper">
+        <button class="step minus" data-dir="-1">−</button>
+        <output class="stepper-value"></output>
+        <button class="step plus" data-dir="1">+</button>
+      </span>`;
+    row.querySelector('.row-label').textContent = cfg.label;
     row.querySelector('.minus').setAttribute('aria-label', `Decrease ${cfg.label}`);
     row.querySelector('.plus').setAttribute('aria-label', `Increase ${cfg.label}`);
     row.addEventListener('click', (e) => {
@@ -301,7 +303,6 @@ function buildSteppers() {
       render();
     });
     cfg.output = row.querySelector('output');
-    $(`steppers-${cfg.group}`).append(row);
   }
 }
 
@@ -313,7 +314,7 @@ function bindSettings() {
       render();
     });
   }
-  for (const name of ['style', 'order', 'personality']) {
+  for (const name of ['style', 'order']) {
     for (const radio of document.querySelectorAll(`input[name="${name}"]`)) {
       radio.addEventListener('change', () => {
         data.settings[name] = radio.value;
@@ -322,8 +323,8 @@ function bindSettings() {
       });
     }
   }
-  $('set-source').addEventListener('change', (e) => {
-    data.settings.source = e.target.value;
+  $('set-personality').addEventListener('change', (e) => {
+    data.settings.personality = e.target.value;
     save();
     render();
   });
@@ -345,32 +346,19 @@ function bindSettings() {
 }
 
 function buildPersonalities() {
-  const box = $('personalities');
-  for (const [id, p] of Object.entries(PERSONALITIES)) {
-    const label = document.createElement('label');
-    label.innerHTML = '<input type="radio" name="personality"><span><b></b><small></small></span>';
-    label.querySelector('input').value = id;
-    label.querySelector('b').textContent = p.label;
-    label.querySelector('small').textContent = p.blurb;
-    box.append(label);
-  }
-}
-
-function sourceOptions() {
-  if (!data.drills.length) return [new Option('No drills: using the starter combos', '')];
-  return data.drills.map((d) => new Option(d.name, d.id));
+  $('set-personality').replaceChildren(...Object.entries(PERSONALITIES).map(([id, p]) => new Option(p.label, id)));
 }
 
 function renderSettings() {
   const s = data.settings;
   for (const cfg of STEPPERS) cfg.output.textContent = cfg.format(s[cfg.key]);
   for (const [id, key] of Object.entries(TOGGLES)) $(id).checked = s[key];
-  for (const name of ['style', 'order', 'personality']) {
+  for (const name of ['style', 'order']) {
     for (const radio of document.querySelectorAll(`input[name="${name}"]`)) radio.checked = radio.value === s[name];
   }
-  const source = $('set-source');
-  source.replaceChildren(...sourceOptions());
-  source.value = drillNow()?.id ?? '';
+  const personality = PERSONALITIES[s.personality] ? s.personality : 'plain';
+  $('set-personality').value = personality;
+  $('coach-blurb').textContent = PERSONALITIES[personality].blurb;
   $('set-rate').value = s.rate;
   $('set-volume').value = s.volume;
   $('out-rate').textContent = `${s.rate.toFixed(1)}×`;
@@ -380,11 +368,14 @@ function renderSettings() {
 
 const isEnglish = (voice) => /^en([-_]|$)/i.test(voice.lang);
 
+// "Microsoft David - English (United States)" → "David"; Android's "English United States" stays.
+const voiceLabel = (voice) => voice.name.replace(/^(Microsoft|Google)\s+/, '').replace(/\s+-\s+English.*$/, '');
+
 function renderVoices() {
   const sel = $('set-voice');
   const all = speech.voices();
   const voices = all.filter(isEnglish).sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
-  sel.replaceChildren(new Option('Phone default', ''), ...voices.map((v) => new Option(`${v.name} (${v.lang})`, v.voiceURI)));
+  sel.replaceChildren(new Option('Phone default', ''), ...voices.map((v) => new Option(voiceLabel(v), v.voiceURI)));
   // Drop a saved voice that's no longer offered (e.g. a non-English one picked earlier).
   if (all.length && data.settings.voiceURI && !voices.some((v) => v.voiceURI === data.settings.voiceURI)) {
     data.settings.voiceURI = '';

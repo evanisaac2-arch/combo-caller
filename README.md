@@ -27,8 +27,8 @@ backend, no build step and no dependencies.
   after the end bell, and sometimes a short technique cue after a combo (only when the gap to
   the next combo is at least 4 s). It also shifts pitch and pace a little. TTS voices can't
   change emotion, so the personality is in the words. Lines live in `src/personalities.js`.
-- Male/female: the browser doesn't expose voice gender. On Android, Chrome uses the voice chosen
-  per accent in Android's Google text-to-speech settings; the app explains how to change it.
+- Male/female: the browser doesn't expose voice gender, and Chrome on Android speaks through the
+  phone's own text-to-speech engine, so the available voices depend on the phone.
 - Screen Wake Lock during a session, with a warning banner if it isn't available.
 - Settings and drills saved in `localStorage`. Works offline once loaded.
 
