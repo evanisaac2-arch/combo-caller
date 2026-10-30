@@ -27,8 +27,35 @@ backend, no build step and no dependencies.
   after the end bell, and sometimes a short technique cue after a combo (only when the gap to
   the next combo is at least 4 s). It also shifts pitch and pace a little. TTS voices can't
   change emotion, so the personality is in the words. Lines live in `src/personalities.js`.
-- Male/female: the browser doesn't expose voice gender, and Chrome on Android speaks through the
-  phone's own text-to-speech engine, so the available voices depend on the phone.
+- Recorded voice packs (optional): pre-made AI voice clips for every phrase, so voice, gender
+  and coach tone are the same on any phone. See "Voice packs" below. Without packs, or while a
+  pack is still loading, the phone's own TTS speaks.
+
+## Voice packs
+
+Chrome on Android can only use the phone's built-in speech engine, so voice choice depends on the
+phone. Voice packs avoid that: everything the app ever says is a fixed list of short phrases
+(`clipScript()` in `src/personalities.js`: punch numbers and names, "Round N" intros and each
+coach's lines), so each phrase is recorded once per voice and per coach as a small mp3.
+
+Packs are made with OpenAI's `gpt-4o-mini-tts`, which takes a tone instruction per coach, so the
+drill sergeant actually barks and the stoic coach stays flat. Each pack is 174 clips (about 2,000
+characters of text, around 1 MB), so generating all four costs well under $1.
+
+```bash
+# PowerShell: set your key for this terminal only, then generate
+$env:OPENAI_API_KEY = "sk-..."
+npm run voices                      # all packs: male-deep, male, female, female-bright
+npm run voices -- --packs female    # just one
+```
+
+This writes `voices/<pack>/<coach>/<clip>.mp3` and `voices/index.json`; commit and push them and
+the packs appear under Settings → Voice → Recorded. Re-running only makes missing clips (add
+`--force` to redo them, e.g. after changing a coach line). `--provider sapi` builds `test-*` packs
+with Windows' built-in voices to test the pipeline without a key; those are git-ignored.
+
+The clips are AI-generated voices, not recordings of real people. Clip speed follows the Speed
+slider within 0.8–1.25×, since speeding up a recording also raises its pitch.
 - Screen Wake Lock during a session, with a warning banner if it isn't available.
 - Settings and drills saved in `localStorage`. Works offline once loaded.
 
@@ -80,6 +107,8 @@ src/session.js        joins timer + callouts + coach cues into one event list (p
 src/personalities.js  coach lines, pitch and pace per personality (pure)
 src/storage.js        settings + drills persistence (localStorage, injectable backend)
 src/speech.js         TTS (Web Speech API)
+src/clipplayer.js     voice-pack clip playback (Web Audio)
+voices/               generated voice packs (scripts/make-voices.mjs)
 src/audio.js          bell / warning sounds (Web Audio)
 src/wakelock.js       Screen Wake Lock
 src/app.js            UI wiring

@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   order: 'random', // random | inorder
   repeatOne: false,
   voiceURI: '',
+  voicePack: '', // a recorded voice pack id from voices/index.json; '' uses the phone's TTS
   personality: 'plain', // a key of PERSONALITIES
   rate: 1,
   volume: 1,

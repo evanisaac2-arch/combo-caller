@@ -2,8 +2,10 @@
 // from cache instantly and refresh the cache in the background. Fetches skip the browser's HTTP
 // cache (GitHub Pages sends max-age=600), otherwise a "refresh" could re-store the old file for
 // ten minutes. Bump CACHE whenever files change so a new worker installs and the app reloads.
+// Voice-pack clips aren't precached: they're cached as they're fetched, so only packs you use
+// take up space.
 
-const CACHE = 'combo-caller-v6';
+const CACHE = 'combo-caller-v7';
 const ASSETS = [
   './',
   'index.html',
@@ -11,6 +13,7 @@ const ASSETS = [
   'css/styles.css',
   'src/app.js',
   'src/audio.js',
+  'src/clipplayer.js',
   'src/combos.js',
   'src/personalities.js',
   'src/session.js',

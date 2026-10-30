@@ -3,10 +3,11 @@
 
 import { TimerEngine } from './timer.js';
 import { buildSession, currentDrill, resolveCombos, WARNING_SEC } from './session.js';
-import { PUNCH_NAMES, parseCombo, formatCombo, comboNames, comboSpeech, calloutGapMs } from './combos.js';
-import { PERSONALITIES, personalityLine, calloutLine, voiceTuning } from './personalities.js';
+import { PUNCH_NAMES, parseCombo, formatCombo, comboNames, calloutGapMs } from './combos.js';
+import { PERSONALITIES, roundCue, momentPhrase, calloutPhrase, clipScript, voiceTuning } from './personalities.js';
 import { createStorage } from './storage.js';
 import { createSpeech } from './speech.js';
+import { createClipPlayer } from './clipplayer.js';
 import { createBeeper } from './audio.js';
 import { createWakeLock } from './wakelock.js';
 
@@ -20,7 +21,9 @@ const $ = (id) => document.getElementById(id);
 const storage = createStorage();
 const data = storage.load();
 const speech = createSpeech();
+const clips = createClipPlayer();
 const beeper = createBeeper();
+let voicePacks = []; // [{ id, label }] from voices/index.json
 const wakeLock = createWakeLock({ onChange: onWakeLockChange });
 
 let engine = null;
@@ -74,7 +77,7 @@ const isActive = () => engine && (engine.state === 'running' || engine.state ===
 function startPause() {
   if (engine?.state === 'running') {
     engine.pause();
-    speech.cancel();
+    hush();
     stopTicker();
     render();
     return;
@@ -100,7 +103,7 @@ function reset() {
   engine = null;
   stopTicker();
   clearTimeout(lineTimer);
-  speech.cancel();
+  hush();
   wakeLock.release();
   showCombo(null);
   render();
@@ -134,30 +137,29 @@ function handleEvent(ev, { lateMs }) {
       break;
     case 'cue':
       if (fresh) {
-        const last = ev.round === engine.totalRounds && engine.totalRounds > 1;
-        say(personalityLine(personality, last ? 'lastRoundSoon' : 'roundSoon', { round: ev.round }));
+        const isLast = ev.round === engine.totalRounds && engine.totalRounds > 1;
+        say(roundCue(personality, ev.round, { isLast }));
       }
       break;
     case 'round-end':
-      speech.cancel();
+      hush();
       showCombo(null);
       if (fresh) {
         beeper.bell();
-        const key = ev.round === engine.totalRounds ? 'done' : 'roundEnd';
-        sayAfterBell(personalityLine(personality, key));
+        sayAfterBell(momentPhrase(personality, ev.round === engine.totalRounds ? 'done' : 'roundEnd'));
       }
       break;
     case 'warning':
       if (fresh) {
         beeper.warning();
-        say(personalityLine(personality, 'warning'));
+        say(momentPhrase(personality, 'warning'));
       }
       break;
     case 'callout':
       if (fresh) {
         showCombo(ev.punches);
         const gapMs = calloutGapMs(ev.punches, data.settings);
-        say(calloutLine(personality, ev.punches, data.settings.style, gapMs));
+        say(calloutPhrase(personality, ev.punches, data.settings.style, gapMs));
       }
       break;
     case 'done':
@@ -167,13 +169,34 @@ function handleEvent(ev, { lateMs }) {
   }
 }
 
-function say(text) {
-  if (text) speech.speak(text, voiceOptions());
+// ---------- voice ----------
+
+const activePack = () => (voicePacks.some((p) => p.id === data.settings.voicePack) ? data.settings.voicePack : '');
+
+// Says a phrase ({ text, keys }): from the voice pack when every clip is loaded, else the phone's
+// TTS, so a half-downloaded pack never leaves gaps.
+function say(phrase) {
+  if (!phrase) return;
+  const pack = activePack();
+  const { personality, rate, volume } = data.settings;
+  if (pack && clips.has(pack, personality, phrase.keys)) {
+    speech.cancel();
+    // Clip speed also shifts pitch, so keep it to a small range.
+    clips.play(pack, personality, phrase.keys, { rate: clamp(rate, 0.8, 1.25), volume });
+  } else {
+    clips.stop();
+    speech.speak(phrase.text, voiceOptions());
+  }
 }
 
-function sayAfterBell(text) {
+function hush() {
+  speech.cancel();
+  clips.stop();
+}
+
+function sayAfterBell(phrase) {
   clearTimeout(lineTimer);
-  if (text) lineTimer = setTimeout(() => engine && say(text), AFTER_BELL_MS);
+  if (phrase) lineTimer = setTimeout(() => engine && say(phrase), AFTER_BELL_MS);
 }
 
 // The rate slider scales the personality's own pace.
@@ -181,6 +204,25 @@ function voiceOptions() {
   const { voiceURI, rate, volume, personality } = data.settings;
   const tuning = voiceTuning(personality);
   return { voiceURI, rate: rate * tuning.rate, pitch: tuning.pitch, volume };
+}
+
+// Decodes the selected pack's clips for the selected coach ahead of time.
+function loadClips() {
+  const pack = activePack();
+  if (!pack) return;
+  const { personality } = data.settings;
+  clips.load(pack, personality, clipScript(personality).map((c) => c.key));
+}
+
+async function loadVoicePacks() {
+  try {
+    const res = await fetch('voices/index.json');
+    if (res.ok) voicePacks = (await res.json()).packs ?? [];
+  } catch {
+    voicePacks = [];
+  }
+  renderVoices();
+  loadClips();
 }
 
 function showCombo(punches) {
@@ -327,10 +369,20 @@ function bindSettings() {
     data.settings.personality = e.target.value;
     save();
     render();
+    loadClips();
   });
+  // Values are "pack:<id>" for a recorded voice or "tts:<voiceURI>" for a phone voice.
   $('set-voice').addEventListener('change', (e) => {
-    data.settings.voiceURI = e.target.value;
+    const v = e.target.value;
+    const [kind, value] = [v.slice(0, v.indexOf(':')), v.slice(v.indexOf(':') + 1)];
+    if (kind === 'pack') {
+      data.settings.voicePack = value;
+    } else {
+      data.settings.voicePack = '';
+      data.settings.voiceURI = value;
+    }
     save();
+    loadClips();
   });
   for (const key of ['rate', 'volume']) {
     $(`set-${key}`).addEventListener('input', (e) => {
@@ -339,9 +391,13 @@ function bindSettings() {
       renderSettings();
     });
   }
+  // Round intro (if this coach has one), then a combo. Played as two phrases so a voice pack
+  // uses its own clips for each.
   $('btn-test-voice').addEventListener('click', () => {
-    const intro = personalityLine(data.settings.personality, 'roundSoon', { round: 1 });
-    say([intro, comboSpeech([1, 2, 3], data.settings.style)].filter(Boolean).join(' '));
+    const { personality, style } = data.settings;
+    const intro = roundCue(personality, 1);
+    const combo = calloutPhrase(personality, [1, 2, 3], style, 0);
+    say(intro ? { text: `${intro.text} ${combo.text}`, keys: [...intro.keys, ...combo.keys] } : combo);
   });
 }
 
@@ -371,18 +427,33 @@ const isEnglish = (voice) => /^en([-_]|$)/i.test(voice.lang);
 // "Microsoft David - English (United States)" → "David"; Android's "English United States" stays.
 const voiceLabel = (voice) => voice.name.replace(/^(Microsoft|Google)\s+/, '').replace(/\s+-\s+English.*$/, '');
 
+function optionGroup(label, options) {
+  const group = document.createElement('optgroup');
+  group.label = label;
+  group.append(...options);
+  return group;
+}
+
 function renderVoices() {
   const sel = $('set-voice');
   const all = speech.voices();
   const voices = all.filter(isEnglish).sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
-  sel.replaceChildren(new Option('Phone default', ''), ...voices.map((v) => new Option(voiceLabel(v), v.voiceURI)));
   // Drop a saved voice that's no longer offered (e.g. a non-English one picked earlier).
   if (all.length && data.settings.voiceURI && !voices.some((v) => v.voiceURI === data.settings.voiceURI)) {
     data.settings.voiceURI = '';
     save();
   }
-  sel.value = data.settings.voiceURI;
-  sel.disabled = !speech.supported;
+  const phone = [new Option('Phone default', 'tts:'), ...voices.map((v) => new Option(voiceLabel(v), `tts:${v.voiceURI}`))];
+  if (voicePacks.length) {
+    sel.replaceChildren(
+      optionGroup('Recorded (AI voices)', voicePacks.map((p) => new Option(p.label, `pack:${p.id}`))),
+      optionGroup('Phone voices', phone),
+    );
+  } else {
+    sel.replaceChildren(...phone);
+  }
+  const pack = activePack();
+  sel.value = pack ? `pack:${pack}` : `tts:${data.settings.voiceURI}`;
 }
 
 // ---------- combos view ----------
@@ -588,6 +659,7 @@ bindSettings();
 bindCombos();
 speech.onVoicesChanged(renderVoices);
 renderVoices();
+loadVoicePacks();
 if (!wakeLock.supported) onWakeLockChange('unsupported');
 if (!speech.supported) setBanner('speech', 'This browser has no text-to-speech, so combos will only show on screen.');
 render();
