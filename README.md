@@ -13,8 +13,11 @@ backend, no build step and no dependencies.
   and a single jab half as long (never under 1 s).
 - Numbers (`1 2 3`) or names (`jab, cross, lead hook`).
   1 jab · 2 cross · 3 lead hook · 4 rear hook · 5 lead uppercut · 6 rear uppercut.
-- Combos from the built-in starter set or your own saved drill lists (Combo Builder: tap 1–6 or
+- Combos from the built-in starter set or saved drill lists (Combo Builder: tap 1–6 or
   type `1-2-3`). Random or in order, or repeat one combo for the whole round.
+- Five preset drill lists to start with: Jab & cross, Lead hook, Rear hook, Uppercuts, Long
+  combos (`PRESET_DRILLS` in `src/combos.js`). They're normal saved drills, so you can edit or
+  delete them; a deleted preset doesn't come back.
 - Voice picker (installed TTS voices), rate and volume.
 - Screen Wake Lock during a session, with a warning banner if it isn't available.
 - Settings and drills saved in `localStorage`. Works offline once loaded.

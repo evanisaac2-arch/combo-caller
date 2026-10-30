@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  STARTER_COMBOS, FIRST_CALLOUT_DELAY_MS, END_QUIET_MS,
+  STARTER_COMBOS, PRESET_DRILLS, FIRST_CALLOUT_DELAY_MS, END_QUIET_MS,
   parseCombo, formatCombo, comboNames, comboSpeech, createPicker, calloutGapMs, planRoundCallouts,
 } from '../src/combos.js';
 
@@ -34,6 +34,14 @@ test('starter set parses and only uses punches 1-4', () => {
     const p = parseCombo(c);
     assert.ok(p, c);
     assert.ok(p.every((n) => n >= 1 && n <= 4), c);
+  }
+});
+
+test('preset drills: unique ids and every combo parses', () => {
+  assert.equal(new Set(PRESET_DRILLS.map((d) => d.id)).size, PRESET_DRILLS.length);
+  for (const drill of PRESET_DRILLS) {
+    assert.ok(drill.combos.length > 0, drill.name);
+    for (const c of drill.combos) assert.ok(parseCombo(c), `${drill.name}: ${c}`);
   }
 });
 

@@ -1,16 +1,43 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStorage, DEFAULT_SETTINGS, STORAGE_KEY } from '../src/storage.js';
+import { PRESET_DRILLS } from '../src/combos.js';
+
+const presetIds = PRESET_DRILLS.map((d) => d.id);
 
 const memoryBackend = () => {
   const map = new Map();
   return { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, String(v)), map };
 };
 
-test('empty storage loads defaults', () => {
+test('empty storage loads defaults and the preset drills', () => {
   const { settings, drills } = createStorage(memoryBackend()).load();
   assert.deepEqual(settings, DEFAULT_SETTINGS);
-  assert.deepEqual(drills, []);
+  assert.deepEqual(drills, PRESET_DRILLS);
+});
+
+test('a deleted preset stays deleted after saving', () => {
+  const backend = memoryBackend();
+  const store = createStorage(backend);
+  const data = store.load();
+  data.drills = data.drills.filter((d) => d.id !== presetIds[0]);
+  store.save(data);
+  assert.deepEqual(createStorage(backend).load().drills.map((d) => d.id), presetIds.slice(1));
+});
+
+test('presets are added to data saved before presets existed, keeping user drills', () => {
+  const backend = memoryBackend();
+  backend.setItem(STORAGE_KEY, JSON.stringify({
+    settings: DEFAULT_SETTINGS,
+    drills: [{ id: 'mine', name: 'Mine', combos: ['1-2'] }],
+  }));
+  assert.deepEqual(createStorage(backend).load().drills.map((d) => d.id), ['mine', ...presetIds]);
+});
+
+test('loading presets does not let edits leak into the shared preset list', () => {
+  const { drills } = createStorage(memoryBackend()).load();
+  drills[0].combos.push('6-6');
+  assert.equal(PRESET_DRILLS[0].combos.includes('6-6'), false);
 });
 
 test('save and load round-trip', () => {
@@ -37,7 +64,7 @@ test('corrupt JSON and wrong types fall back to defaults', () => {
   assert.equal(settings.rounds, DEFAULT_SETTINGS.rounds);
   assert.equal(settings.rate, 1.5);
   assert.equal('extra' in settings, false);
-  assert.deepEqual(drills.map((d) => d.id), ['ok']);
+  assert.deepEqual(drills.map((d) => d.id), ['ok', ...presetIds]);
 });
 
 test('save reports failure instead of throwing (quota, private mode)', () => {

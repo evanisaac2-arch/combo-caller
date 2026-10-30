@@ -1,6 +1,8 @@
 // Storage: settings and saved drill lists in localStorage. The backend is injectable so a native
 // wrapper (e.g. Capacitor Preferences behind a sync cache) or a test fake can replace it.
 
+import { PRESET_DRILLS } from './combos.js';
+
 export const STORAGE_KEY = 'combo-caller:v1';
 
 export const DEFAULT_SETTINGS = Object.freeze({
@@ -45,12 +47,19 @@ export function createStorage(backend = globalThis.localStorage) {
         if (typeof stored[key] === typeof DEFAULT_SETTINGS[key]) settings[key] = stored[key];
       }
       const drills = isObject(data) && Array.isArray(data.drills) ? data.drills.filter(isDrill) : [];
+      // Presets are added once (also for data saved before presets existed); after the first save
+      // the flag is set, so a preset the user deletes stays deleted.
+      if (!(isObject(data) && data.presetsSeeded)) {
+        for (const preset of PRESET_DRILLS) {
+          if (!drills.some((d) => d.id === preset.id)) drills.push(structuredClone(preset));
+        }
+      }
       return { settings, drills };
     },
 
     save({ settings, drills }) {
       try {
-        backend.setItem(STORAGE_KEY, JSON.stringify({ settings, drills }));
+        backend.setItem(STORAGE_KEY, JSON.stringify({ settings, drills, presetsSeeded: true }));
         return true;
       } catch {
         return false;

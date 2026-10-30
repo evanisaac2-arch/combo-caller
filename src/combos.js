@@ -14,6 +14,15 @@ export const STARTER_COMBOS = Object.freeze([
   '1', '1-1', '1-2', '1-1-2', '1-2-3', '2-3', '1-2-3-2', '3-2', '1-3', '2-3-2',
 ]);
 
+// Drill lists every user starts with. They're ordinary saved drills, so they can be edited or deleted.
+export const PRESET_DRILLS = Object.freeze([
+  { id: 'preset-jab-cross', name: 'Jab & cross', combos: ['1', '1-1', '1-2', '1-1-2', '2-1-2', '1-2-1-2'] },
+  { id: 'preset-lead-hook', name: 'Lead hook', combos: ['1-3', '1-2-3', '3-2', '1-1-3', '2-3-2', '1-2-3-2'] },
+  { id: 'preset-rear-hook', name: 'Rear hook', combos: ['1-4', '3-4', '1-3-4', '1-2-3-4', '5-4'] },
+  { id: 'preset-uppercuts', name: 'Uppercuts', combos: ['1-6', '5-2', '6-3', '2-5-2', '1-6-3-2', '5-6'] },
+  { id: 'preset-long', name: 'Long combos', combos: ['1-2-3-2', '1-2-5-2', '1-6-3-2', '1-1-2-3-2', '2-3-2-3', '1-2-3-4-2'] },
+]);
+
 // Let the round-start bell finish before the first callout.
 export const FIRST_CALLOUT_DELAY_MS = 1500;
 // No new callout this close to the end-of-round bell.
