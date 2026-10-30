@@ -5,7 +5,7 @@ import { TimerEngine } from './timer.js';
 import { buildSession, currentDrill, resolveCombos, WARNING_SEC } from './session.js';
 import { PUNCH_NAMES, parseCombo, formatCombo, comboNames, calloutGapMs } from './combos.js';
 import { PERSONALITIES, roundCue, momentPhrase, calloutPhrase, clipScript, voiceTuning } from './personalities.js';
-import { createStorage } from './storage.js';
+import { createStorage, MAX_GET_READY_SEC } from './storage.js';
 import { createSpeech } from './speech.js';
 import { createClipPlayer } from './clipplayer.js';
 import { createBeeper } from './audio.js';
@@ -131,9 +131,15 @@ function handleEvent(ev, { lateMs }) {
     case 'phase':
       if (ev.kind === 'round') {
         if (fresh) beeper.bell();
+        // The bell after the get-ready countdown is the "go".
+        if (ev.round === 1 && data.settings.getReadySec > 0) showText('Go!', '');
       } else {
         showCombo(null);
       }
+      break;
+    case 'count':
+      if (fresh) beeper.tick();
+      showText(String(ev.n), 'Get ready');
       break;
     case 'cue':
       if (fresh) {
@@ -235,8 +241,13 @@ async function loadVoicePacks() {
 }
 
 function showCombo(punches) {
-  $('combo-numbers').textContent = punches ? formatCombo(punches) : ' ';
-  $('combo-names').textContent = punches ? comboNames(punches) : ' ';
+  showText(punches ? formatCombo(punches) : '', punches ? comboNames(punches) : '');
+}
+
+// The big line and the small line of the combo box (a non-breaking space keeps its height).
+function showText(big, small) {
+  $('combo-numbers').textContent = big || ' ';
+  $('combo-names').textContent = small || ' ';
 }
 
 // ---------- timer view ----------
@@ -327,7 +338,7 @@ const STEPPERS = [
   { key: 'roundSec', label: 'Round length', step: 30, min: 30, max: 900, format: mmss },
   { key: 'restSec', label: 'Rest', step: 15, min: 15, max: 300, format: mmss },
   { key: 'rounds', label: 'Rounds', step: 1, min: 1, max: 30, format: String },
-  { key: 'getReadySec', label: 'Get ready', step: 5, min: 0, max: 60, format: (v) => (v ? `${v}s` : 'Off') },
+  { key: 'getReadySec', label: 'Get ready', step: 1, min: 0, max: MAX_GET_READY_SEC, format: (v) => (v ? `${v}s` : 'None') },
   { key: 'intervalSec', label: 'Callout every', step: 1, min: 2, max: 10, format: (v) => `${v}s` },
 ];
 

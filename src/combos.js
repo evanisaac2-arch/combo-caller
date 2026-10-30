@@ -60,7 +60,7 @@ export function comboNames(punches) {
 
 // Text handed to TTS. Numbers are space-separated so engines read "one two three", not "one minus two".
 export function comboSpeech(punches, style = 'numbers') {
-  return style === 'names' ? punches.map((p) => SPOKEN_NAMES[p]).join(', ') : punches.join(' ');
+  return style === 'names' ? punches.map((p) => SPOKEN_NAMES[p]).join(' ') : punches.join(' ');
 }
 
 // combos: array of punch arrays. order: 'random' | 'inorder'.

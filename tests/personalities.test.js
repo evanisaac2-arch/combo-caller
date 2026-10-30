@@ -34,19 +34,19 @@ test('round cue: intro with the round number, plus an optional line; last round 
   assert.deepEqual(roundCue('sergeant', 4, { isLast: true, rng: always }).keys, ['lastRoundSoon-0']);
 });
 
-test('callout: names joined with commas, technique cue only with time and luck', () => {
+test('callout: punches run together, technique cue only with time and luck', () => {
   assert.deepEqual(calloutPhrase('sergeant', [1, 2], 'numbers', PUSH_MIN_GAP_MS, always), {
     text: '1 2. Hands up!', keys: ['num-1', 'num-2', 'push-0'],
   });
   assert.equal(calloutPhrase('sergeant', [1, 2], 'numbers', PUSH_MIN_GAP_MS - 1, always).text, '1 2');
   assert.equal(calloutPhrase('sergeant', [1, 2], 'numbers', 10000, () => 0.99).text, '1 2');
   assert.deepEqual(calloutPhrase('stoic', [1, 3], 'names', 1000, always), {
-    text: 'jab, leed hook', keys: ['name-1', 'name-3'],
+    text: 'jab leed hook', keys: ['name-1', 'name-3'],
   });
 });
 
 test('clip gaps: short between punches, longer around lines', () => {
-  assert.equal(gapBetweenMs('name-1', 'name-2'), 60);
+  assert.equal(gapBetweenMs('name-1', 'name-2'), 0);
   assert.equal(gapBetweenMs('num-1', 'push-0'), 250);
   assert.equal(gapBetweenMs('round-2', 'roundSoon-1'), 250);
 });

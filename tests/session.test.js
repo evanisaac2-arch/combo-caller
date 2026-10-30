@@ -41,6 +41,14 @@ test('round-coming-up cue lands before each round that has a get-ready or rest i
   assert.equal(shortReady.events.some((e) => e.type === 'cue'), false);
 });
 
+test('get-ready counts down once per second, ending a second before round 1', () => {
+  const { segments, events } = buildSession(settings({ getReadySec: 3 }), [[1]]);
+  const counts = events.filter((e) => e.type === 'count');
+  assert.deepEqual(counts.map((c) => [c.t, c.n]), [[0, 3], [1000, 2], [2000, 1]]);
+  assert.equal(segments.find((s) => s.kind === 'round').startMs, 3000);
+  assert.equal(buildSession(settings({ getReadySec: 0 }), [[1]]).events.some((e) => e.type === 'count'), false);
+});
+
 test('no combos means a plain round timer', () => {
   const { events } = buildSession(settings(), []);
   assert.equal(events.some((e) => e.type === 'callout'), false);

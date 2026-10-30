@@ -89,6 +89,36 @@ test('corrupt JSON and wrong types fall back to defaults', () => {
   assert.deepEqual(drills.map((d) => d.id), ['ok', ...presetIds]);
 });
 
+test('new defaults: 3 s get-ready, punch names', () => {
+  assert.equal(DEFAULT_SETTINGS.getReadySec, 3);
+  assert.equal(DEFAULT_SETTINGS.style, 'names');
+});
+
+test('settings from an older version pick up the new defaults once', () => {
+  const backend = memoryBackend();
+  backend.setItem(STORAGE_KEY, JSON.stringify({ settings: { ...DEFAULT_SETTINGS, getReadySec: 10, style: 'numbers', rounds: 5 } }));
+  const store = createStorage(backend);
+  const data = store.load();
+  assert.equal(data.settings.getReadySec, 3);
+  assert.equal(data.settings.style, 'names');
+  assert.equal(data.settings.rounds, 5);
+  // After that, the user's own choices stick.
+  data.settings.style = 'numbers';
+  data.settings.getReadySec = 10;
+  store.save(data);
+  const again = createStorage(backend).load().settings;
+  assert.equal(again.style, 'numbers');
+  assert.equal(again.getReadySec, 10);
+});
+
+test('an old custom get-ready over the new 10 s maximum is capped; other custom values are kept', () => {
+  const backend = memoryBackend();
+  backend.setItem(STORAGE_KEY, JSON.stringify({ settings: { ...DEFAULT_SETTINGS, getReadySec: 30 } }));
+  assert.equal(createStorage(backend).load().settings.getReadySec, 10);
+  backend.setItem(STORAGE_KEY, JSON.stringify({ settings: { ...DEFAULT_SETTINGS, getReadySec: 5 } }));
+  assert.equal(createStorage(backend).load().settings.getReadySec, 5);
+});
+
 test('save reports failure instead of throwing (quota, private mode)', () => {
   const store = createStorage({ getItem: () => null, setItem: () => { throw new Error('quota'); } });
   assert.equal(store.save({ settings: DEFAULT_SETTINGS, drills: [] }), false);

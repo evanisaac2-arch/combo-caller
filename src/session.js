@@ -24,6 +24,11 @@ export function resolveCombos(settings, drills) {
 export function buildSession(settings, combos, { rng = Math.random } = {}) {
   const segments = buildTimeline(settings);
   const events = buildTimerEvents(segments, { warningSec: settings.warning ? WARNING_SEC : 0 });
+  // Racing-style countdown: one 'count' per second of get-ready (3, 2, 1), then the round bell.
+  for (const seg of segments.filter((s) => s.kind === 'getready')) {
+    const secs = Math.round((seg.endMs - seg.startMs) / 1000);
+    for (let i = 0; i < secs; i++) events.push({ t: seg.startMs + i * 1000, type: 'count', n: secs - i });
+  }
   segments.forEach((seg, i) => {
     const prev = segments[i - 1];
     if (seg.kind === 'round' && prev && prev.endMs - prev.startMs > ROUND_SOON_MS + 1000) {

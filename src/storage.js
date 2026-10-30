@@ -5,16 +5,19 @@ import { PRESET_DRILLS } from './combos.js';
 
 export const STORAGE_KEY = 'combo-caller:v1';
 export const STARTER_DRILL_ID = 'preset-starter';
+// Bumped when defaults change in a way saved settings should pick up once (see upgrade()).
+export const SETTINGS_VERSION = 2;
+export const MAX_GET_READY_SEC = 10;
 
 export const DEFAULT_SETTINGS = Object.freeze({
   roundSec: 180,
   restSec: 60,
   rounds: 3,
-  getReadySec: 10,
+  getReadySec: 3,
   warning: true,
   intervalSec: 5,
   scaleByLength: false,
-  style: 'numbers', // numbers | names
+  style: 'names', // names | numbers
   source: 'preset-starter', // a drill id
   order: 'random', // random | inorder
   repeatOne: false,
@@ -55,6 +58,16 @@ function seedPresets(drills, seeded) {
   });
 }
 
+// One-time changes for settings saved by an older version. Version 2: get-ready went from a
+// 10 s default (0–60 s) to 3 s (0–10 s), and punch names became the default call-out style.
+function upgrade(settings, version) {
+  if (version < 2) {
+    if (settings.getReadySec === 10) settings.getReadySec = DEFAULT_SETTINGS.getReadySec;
+    if (settings.style === 'numbers') settings.style = 'names';
+  }
+  settings.getReadySec = Math.min(settings.getReadySec, MAX_GET_READY_SEC);
+}
+
 export function createStorage(backend = globalThis.localStorage) {
   return {
     load() {
@@ -72,6 +85,9 @@ export function createStorage(backend = globalThis.localStorage) {
       }
       // The starter set used to be a built-in source rather than a drill.
       if (settings.source === 'starter') settings.source = STARTER_DRILL_ID;
+      if (isObject(data) && isObject(data.settings)) {
+        upgrade(settings, Number.isInteger(data.settingsVersion) ? data.settingsVersion : 1);
+      }
       const drills = isObject(data) && Array.isArray(data.drills) ? data.drills.filter(isDrill) : [];
       seedPresets(drills, seededIds(data));
       return { settings, drills };
@@ -80,7 +96,7 @@ export function createStorage(backend = globalThis.localStorage) {
     save({ settings, drills }) {
       try {
         const seededPresets = PRESET_DRILLS.map((p) => p.id);
-        backend.setItem(STORAGE_KEY, JSON.stringify({ settings, drills, seededPresets }));
+        backend.setItem(STORAGE_KEY, JSON.stringify({ settings, drills, seededPresets, settingsVersion: SETTINGS_VERSION }));
         return true;
       } catch {
         return false;

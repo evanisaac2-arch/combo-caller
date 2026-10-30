@@ -54,6 +54,9 @@ const MAX_ATTEMPTS = 6; // per clip, for errors other than rate limits
 // Lines per request, by kind of clip. Longer lines get smaller batches, so a batch that won't
 // split cleanly costs less to redo.
 const BATCH_SIZE = { punch: 12, round: 15, line: 8 };
+// Punch words come out spoken slowly and deliberately, one at a time. Speeding them up (pitch
+// kept) gives combos a coach's real cadence.
+const PUNCH_TEMPO = 1.5;
 
 const args = process.argv.slice(2);
 const option = (name) => {
@@ -209,21 +212,24 @@ async function sapiClips(jobs, voice, rate, workDir) {
 // ---------- shared ----------
 
 // Trim leading/trailing silence, mono, small mp3; optionally only the { from, to } part of the
-// recording. Written to a temp name and renamed, so a clip interrupted halfway is never mistaken
-// for a finished one.
-async function finish(raw, out, range = null) {
+// recording, and sped up by `tempo` (pitch kept). Written to a temp name and renamed, so a clip
+// interrupted halfway is never mistaken for a finished one.
+async function finish(raw, out, range = null, tempo = 1) {
   const trim = 'silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.02';
+  const speed = tempo !== 1 ? `,atempo=${tempo}` : '';
   const part = out.replace(/\.mp3$/, '.part.mp3');
   // The cut goes before -i so ffmpeg only reads that slice and the filters see all of it; as
   // output options, -to can end the output before the reversed trim is done and clip the line.
   const cut = range ? ['-ss', range.from.toFixed(3), '-to', range.to.toFixed(3)] : [];
   await run('ffmpeg', [
     '-y', '-loglevel', 'error', ...cut, '-i', raw,
-    '-af', `${trim},areverse,${trim},areverse`,
+    '-af', `${trim},areverse,${trim},areverse${speed}`,
     '-ac', '1', '-ar', '24000', '-b:a', '48k', part,
   ]);
   await rename(part, out);
 }
+
+const tempoFor = (clip) => (kindOf(clip) === 'punch' ? PUNCH_TEMPO : 1);
 
 // Where each of n lines sits in a batch recording, or null if it can't be told reliably.
 async function findLines(raw, n) {
@@ -242,7 +248,7 @@ async function makeBatch(limiter, pack, personalityId, jobs, workDir, onClip, st
   await writeFile(raw, await openaiClip(limiter, input, pack.openai, instructionsFor(personalityId, first.clip, jobs.length)));
   stats.requests++;
   if (jobs.length === 1) {
-    await finish(raw, first.out);
+    await finish(raw, first.out, null, tempoFor(first.clip));
     onClip();
     return;
   }
@@ -255,7 +261,7 @@ async function makeBatch(limiter, pack, personalityId, jobs, workDir, onClip, st
     return;
   }
   for (let i = 0; i < jobs.length; i++) {
-    await finish(raw, jobs[i].out, ranges[i]);
+    await finish(raw, jobs[i].out, ranges[i], tempoFor(jobs[i].clip));
     onClip();
   }
 }
@@ -330,7 +336,7 @@ async function buildPack(pack, jobs, workDir, limiter, stats, onCoachDone = asyn
       for (const job of group) job.raw = join(workDir, `${id}-${personalityId}-${job.clip.key}.wav`);
       await sapiClips(group, pack.sapi, Math.round((PERSONALITIES[personalityId].rate - 1) * 10), workDir);
       for (const job of group) {
-        await finish(job.raw, job.out);
+        await finish(job.raw, job.out, null, tempoFor(job.clip));
         onClip();
       }
       await onCoachDone();

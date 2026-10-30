@@ -3,6 +3,8 @@
 // phone's audio output while your music plays.
 
 const BELL_HZ = 700;
+// Countdown dings sit higher than the bell so "3, 2, 1" and "go" sound different.
+const TICK_HZ = 1050;
 // Rough partials of a struck bell (multiples of the fundamental).
 const BELL_PARTIALS = [
   [1, 0.3, 1.1],
@@ -59,6 +61,15 @@ export function createBeeper(AudioCtx = globalThis.AudioContext || globalThis.we
         for (const [mult, peak, dur] of BELL_PARTIALS) tone(c, BELL_HZ * mult, s, dur, peak);
       }
       suspendAfter(2500);
+    },
+
+    // One short, bright ding per second of the get-ready countdown; the round bell is the "go".
+    tick() {
+      const c = ensure();
+      if (!c) return;
+      const t0 = c.currentTime + 0.03;
+      for (const [mult, peak, dur] of BELL_PARTIALS) tone(c, TICK_HZ * mult, t0, dur * 0.4, peak * 0.9);
+      suspendAfter(900);
     },
 
     // Two short beeps, 10 seconds before the round ends.

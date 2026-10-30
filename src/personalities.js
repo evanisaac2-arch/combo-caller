@@ -97,8 +97,10 @@ const line = (id, key, rng) => {
   return { key: `${key}-${i}`, text: list[i] };
 };
 
+// Punches run together with no commas: a comma makes TTS pause after every punch, which sounds
+// nothing like a coach calling a combo.
 const punchPart = (p, style) => (style === 'names'
-  ? { key: `name-${p}`, text: SPOKEN_NAMES[p], combo: true, joiner: ', ' }
+  ? { key: `name-${p}`, text: SPOKEN_NAMES[p], combo: true, joiner: ' ' }
   : { key: `num-${p}`, text: String(p), combo: true, joiner: ' ' });
 
 // "Round 3 coming up. You've got this." (or the last-round line), or null for Plain.
@@ -129,10 +131,11 @@ export function calloutPhrase(id, punches, style, gapMs, rng = Math.random) {
   return phrase(parts);
 }
 
-// Pause between two clips of a phrase: short between punches, longer before a line.
+// Pause between two clips of a phrase: none between punches (each clip already keeps a few ms of
+// silence at its edges), longer before a line.
 export function gapBetweenMs(key, nextKey) {
   const combo = (k) => k.startsWith('num-') || k.startsWith('name-');
-  return combo(key) && combo(nextKey) ? 60 : 250;
+  return combo(key) && combo(nextKey) ? 0 : 250;
 }
 
 // Every clip a voice pack needs for one personality: [{ key, text }].
