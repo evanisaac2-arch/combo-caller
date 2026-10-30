@@ -524,4 +524,21 @@ if (!wakeLock.supported) onWakeLockChange('unsupported');
 if (!speech.supported) setBanner('speech', 'This browser has no text-to-speech, so combos will only show on screen.');
 render();
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+// A new service worker takes over once an update has downloaded. Reload to run the new version,
+// but never mid-session; then it waits until the session is reset or finished.
+let updateReady = false;
+
+function reloadIfUpdateReady() {
+  if (updateReady && !isActive()) location.reload();
+}
+
+if ('serviceWorker' in navigator) {
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return; // first install, nothing old to replace
+    updateReady = true;
+    reloadIfUpdateReady();
+  });
+  $('btn-reset').addEventListener('click', reloadIfUpdateReady);
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}

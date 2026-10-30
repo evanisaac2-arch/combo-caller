@@ -1,8 +1,9 @@
 // Service worker: caches the app shell so it works offline. Stale-while-revalidate: pages load
-// from cache instantly and refresh the cache in the background, so a deploy shows up on the next
-// launch. Bump CACHE when the asset list changes.
+// from cache instantly and refresh the cache in the background. Fetches skip the browser's HTTP
+// cache (GitHub Pages sends max-age=600), otherwise a "refresh" could re-store the old file for
+// ten minutes. Bump CACHE whenever files change so a new worker installs and the app reloads.
 
-const CACHE = 'combo-caller-v1';
+const CACHE = 'combo-caller-v2';
 const ASSETS = [
   './',
   'index.html',
@@ -23,7 +24,11 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((cache) => cache.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -38,7 +43,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   const network = caches.open(CACHE).then((cache) =>
-    fetch(req).then((res) => {
+    fetch(req, { cache: 'no-cache' }).then((res) => {
       if (res.ok) cache.put(req, res.clone());
       return res;
     }),

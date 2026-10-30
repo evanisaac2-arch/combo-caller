@@ -53,9 +53,11 @@ is the site:
 All paths are relative, so it works from a sub-path. Netlify, Cloudflare Pages or any static host
 works the same way (publish directory = repo root).
 
-Updates: the service worker serves the cached copy and refreshes it in the background, so a new
-deploy shows up the *second* time you open the app. If you add or rename files, add them to
-`ASSETS` in `sw.js` and bump `CACHE`.
+Updates: **bump `CACHE` in `sw.js` on every deploy** (and add any new files to `ASSETS`). The
+changed `sw.js` makes the browser install the new version in the background; once it's ready
+the app reloads itself into it, unless a session is running, in which case it waits until you
+press Reset. Without the bump, changes still arrive (the cache refreshes in the background) but
+only show up on the following launch.
 
 ## Project layout
 
