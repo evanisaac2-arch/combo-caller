@@ -6,3 +6,4 @@ desktop.ini
 voices/test-*/
 voices/.openai-usage.json
 voices/**/*.part.mp3
+voices/.debug/

@@ -54,6 +54,22 @@ export function lineRanges(silences, total, n, { minBreak = 0.6, ratio = 1.4, mi
   return ranges;
 }
 
+// A second, independent check that a split is right: each piece's length has to fit its words.
+// Seconds per letter must be in a sane range for speech, and every line has to be spoken at a
+// similar pace to the rest of its batch. A merged pair of lines or a line cut in half shows up
+// as one piece far too long or too short for its text.
+const letters = (text) => Math.max(1, String(text).replace(/[^a-z0-9]/gi, '').length);
+
+export function plausibleSplit(ranges, texts, { minPerLetter = 0.025, maxPerLetter = 0.3, spread = [0.45, 2.2] } = {}) {
+  if (!ranges || ranges.length !== texts.length) return false;
+  const pace = ranges.map((r, i) => (r.to - r.from) / letters(texts[i]));
+  if (pace.some((p) => p < minPerLetter || p > maxPerLetter)) return false;
+  if (pace.length < 3) return true;
+  const sorted = [...pace].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  return pace.every((p) => p / median >= spread[0] && p / median <= spread[1]);
+}
+
 // Splits a list into chunks of at most `size`.
 export function chunk(list, size) {
   const out = [];

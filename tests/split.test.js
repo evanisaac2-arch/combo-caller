@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSilences, lineRanges, chunk } from '../scripts/split.mjs';
+import { parseSilences, lineRanges, plausibleSplit, chunk } from '../scripts/split.mjs';
 
 const ffmpegLog = `
 [silencedetect @ 0x1] silence_start: 0
@@ -45,6 +45,23 @@ test('refuses with too few pauses, too-short breaks, or an empty line', () => {
 test('a single line is everything between the leading and trailing silence', () => {
   const ranges = lineRanges([{ start: 0, end: 0.2 }, { start: 0.9, end: 1.2 }], 1.2, 1);
   assert.deepEqual(ranges.map(({ from, to }) => [Math.round(from * 100) / 100, Math.round(to * 100) / 100]), [[0.15, 0.95]]);
+});
+
+test('plausibleSplit: lengths that fit the words pass', () => {
+  const texts = ['Jab.', 'Cross.', 'Lead hook.', 'Rear uppercut.'];
+  const ranges = [[0, 0.5], [1, 1.6], [2, 2.9], [3.5, 4.8]].map(([from, to]) => ({ from, to }));
+  assert.equal(plausibleSplit(ranges, texts), true);
+});
+
+test('plausibleSplit: a merged pair or a line cut in half fails', () => {
+  const texts = ['Jab.', 'Cross.', 'Lead hook.', 'Rear uppercut.'];
+  // "Cross" and "Lead hook" ran together, so "Lead hook" got the start of "Rear uppercut"
+  // and "Rear uppercut" got only its tail.
+  const merged = [[0, 0.5], [1, 2.9], [3.5, 4.1], [4.3, 4.8]].map(([from, to]) => ({ from, to }));
+  assert.equal(plausibleSplit(merged, texts), false);
+  assert.equal(plausibleSplit([{ from: 0, to: 3 }], ['Jab.']), false); // 1 s per letter
+  assert.equal(plausibleSplit(null, texts), false);
+  assert.equal(plausibleSplit([{ from: 0, to: 1 }], texts), false); // wrong count
 });
 
 test('chunk', () => {

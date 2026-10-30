@@ -31,7 +31,7 @@ import { PERSONALITIES, clipScript, clipFiles } from '../src/personalities.js';
 import {
   createLimiter, retryDelayMs, isDailyLimitMessage, isQuotaError, estimateDays, formatWait, MINUTE,
 } from './ratelimit.mjs';
-import { parseSilences, lineRanges, chunk } from './split.mjs';
+import { parseSilences, lineRanges, plausibleSplit, chunk } from './split.mjs';
 
 const run = promisify(execFile);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -39,6 +39,8 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const voicesDir = join(root, 'voices');
 // Timestamps of requests sent in the last day, so the daily count survives a restart.
 const usageFile = join(voicesDir, '.openai-usage.json');
+// Batch recordings that wouldn't split, kept for diagnosis (git-ignored).
+const debugDir = join(voicesDir, '.debug');
 
 const PACKS = [
   { id: 'male-deep', label: 'Male, deep', openai: 'onyx', sapi: 'Microsoft David Desktop' },
@@ -246,12 +248,34 @@ async function finishClip(raw, job, range) {
   for (const older of clipFiles(job.clip.key).slice(1)) await rm(join(dir, `${older}.mp3`), { force: true });
 }
 
-// Where each of n lines sits in a batch recording, or null if it can't be told reliably.
-async function findLines(raw, n) {
+// Silence levels to try, strict to loose. Real voices leave breaths and room tone between lines,
+// so a strict level can miss the breaks; a loose one can find breaks inside words. Whichever
+// level first gives a split whose pieces also fit their words wins.
+const SILENCE_DB = [-45, -40, -35, -30];
+const BREAK_RULES = { minBreak: 0.35, ratio: 1.25 };
+
+// Where each line sits in a batch recording: { ranges, attempts }. ranges is null if no level
+// gives a split that passes both checks; attempts says what each level found (for debugging).
+async function findLines(raw, texts) {
   const { stdout } = await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', raw]);
   const total = Number(stdout.trim());
-  const { stderr } = await run('ffmpeg', ['-hide_banner', '-i', raw, '-af', 'silencedetect=noise=-40dB:d=0.25', '-f', 'null', '-'], { maxBuffer: 1 << 24 });
-  return lineRanges(parseSilences(stderr, total), total, n);
+  const attempts = [];
+  for (const db of SILENCE_DB) {
+    const { stderr } = await run('ffmpeg', ['-hide_banner', '-i', raw, '-af', `silencedetect=noise=${db}dB:d=0.15`, '-f', 'null', '-'], { maxBuffer: 1 << 24 });
+    const silences = parseSilences(stderr, total);
+    const ranges = lineRanges(silences, total, texts.length, BREAK_RULES);
+    const ok = plausibleSplit(ranges, texts);
+    attempts.push({ db, silences: silences.map((s) => [+s.start.toFixed(2), +s.end.toFixed(2)]), split: Boolean(ranges), plausible: ok });
+    if (ok) return { ranges, attempts, total };
+  }
+  return { ranges: null, attempts, total };
+}
+
+// Keeps a batch that wouldn't split, with what was tried, so the cause can be looked at.
+async function saveFailedBatch(raw, name, texts, found) {
+  await mkdir(debugDir, { recursive: true });
+  await writeFile(join(debugDir, `${name}.mp3`), await readFile(raw));
+  await writeFile(join(debugDir, `${name}.json`), `${JSON.stringify({ texts, total: found.total, attempts: found.attempts }, null, 1)}\n`);
 }
 
 // Makes these clips (same personality and kind) with as few requests as possible: the whole group
@@ -267,9 +291,12 @@ async function makeBatch(limiter, pack, personalityId, jobs, workDir, onClip, st
     onClip();
     return;
   }
-  const ranges = await findLines(raw, jobs.length);
+  const texts = jobs.map((j) => j.input);
+  const found = await findLines(raw, texts);
+  const { ranges } = found;
   if (!ranges) {
     stats.resplits++;
+    await saveFailedBatch(raw, `${packId(pack)}-${personalityId}-${first.clip.key}-x${jobs.length}`, texts, found);
     const mid = Math.ceil(jobs.length / 2);
     await makeBatch(limiter, pack, personalityId, jobs.slice(0, mid), workDir, onClip, stats);
     await makeBatch(limiter, pack, personalityId, jobs.slice(mid), workDir, onClip, stats);

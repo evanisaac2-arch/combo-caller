@@ -62,9 +62,13 @@ temporary name and renamed), so you can close it any time and run it again later
 
 Batching keeps the request count low: each request reads a group of lines (12 punch callouts, 15
 round intros or 8 coach lines) with two-second pauses, and the recording is cut at those pauses.
-A batch is only cut when the pauses clearly mark the right number of lines (each break at least
-0.6 s and clearly longer than any pause inside a line); otherwise it's re-requested as two halves,
-down to one line per request, so a bad split never becomes a mislabeled clip. That's about 15
+A batch is only cut when two independent checks agree: the pauses clearly mark the right number of
+lines (each break at least 0.35 s and clearly longer than any pause inside a line), and every
+piece's length fits its words (a sane seconds-per-letter, and a pace similar to the rest of the
+batch). Real voices breathe between lines, so silence is looked for at several levels (-45 to
+-30 dB) and the first level that passes both checks wins. Otherwise the batch is re-requested as
+two halves, down to one line per request, so a bad split never becomes a mislabeled clip. Batches
+that wouldn't split are kept in `voices/.debug/` (git-ignored) with what each level found. That's about 15
 requests per pack, 60 for all four: roughly a day and a bit at 50 per day. `--no-batch` goes back
 to one request per clip. Packs are listed in the app as each one finishes. `--provider sapi` builds `test-*` packs
 with Windows' built-in voices to test the pipeline without a key; those are git-ignored.
