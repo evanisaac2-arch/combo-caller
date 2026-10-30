@@ -119,6 +119,24 @@ body[data-phase="getready"] .phase { color: var(--getready); }
 }
 .combo-names { color: var(--muted); font-size: 1.15rem; margin-top: 6px; }
 
+/* Drill buttons take the combo box's place before and after a session. */
+.drill-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 20px 0 12px;
+}
+.chip {
+  min-height: 56px;
+  padding: 4px 10px;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+.chip[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+body[data-phase="idle"] .combo,
+body[data-phase="done"] .combo { display: none; }
+body:not([data-phase="idle"]):not([data-phase="done"]) .drill-chips { display: none; }
+
 .controls {
   display: grid;
   grid-template-columns: 2fr 1fr;

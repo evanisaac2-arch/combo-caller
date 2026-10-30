@@ -3,7 +3,7 @@
 // cache (GitHub Pages sends max-age=600), otherwise a "refresh" could re-store the old file for
 // ten minutes. Bump CACHE whenever files change so a new worker installs and the app reloads.
 
-const CACHE = 'combo-caller-v3';
+const CACHE = 'combo-caller-v4';
 const ASSETS = [
   './',
   'index.html',

@@ -248,6 +248,31 @@ function renderTimer() {
   $('source-info').textContent = sourceSummary();
 }
 
+// Drill buttons on the Timer page: one tap picks what the next session calls out.
+function renderChips() {
+  const current = data.drills.some((d) => d.id === data.settings.source) ? data.settings.source : 'starter';
+  const options = [{ id: 'starter', name: 'Starter set' }, ...data.drills];
+  $('drill-chips').replaceChildren(...options.map(({ id, name }) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn chip';
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', String(id === current));
+    btn.dataset.source = id;
+    btn.textContent = name;
+    return btn;
+  }));
+}
+
+function bindChips() {
+  $('drill-chips').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-source]');
+    if (!btn || isActive()) return;
+    data.settings.source = btn.dataset.source;
+    save();
+    render();
+  });
+}
+
 // ---------- settings view ----------
 
 const STEPPERS = [
@@ -559,6 +584,7 @@ function showTab(name) {
 
 function render() {
   renderTimer();
+  renderChips();
   renderSettings();
   renderCombos();
 }
@@ -570,6 +596,7 @@ $('btn-reset').addEventListener('click', reset);
 buildSteppers();
 buildKeypad();
 buildPersonalities();
+bindChips();
 bindSettings();
 bindCombos();
 speech.onVoicesChanged(renderVoices);
