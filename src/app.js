@@ -171,7 +171,15 @@ function handleEvent(ev, { lateMs }) {
 
 // ---------- voice ----------
 
-const activePack = () => (voicePacks.some((p) => p.id === data.settings.voicePack) ? data.settings.voicePack : '');
+// A pack lists the coaches it has fully recorded; older indexes without the list have them all.
+const packHas = (pack, personality) => !pack.personalities || pack.personalities.includes(personality);
+const chosenPack = () => voicePacks.find((p) => p.id === data.settings.voicePack) ?? null;
+
+// The recorded voice to use right now: the chosen pack, if it has the current coach.
+const activePack = () => {
+  const pack = chosenPack();
+  return pack && packHas(pack, data.settings.personality) ? pack.id : '';
+};
 
 // Says a phrase ({ text, keys }): from the voice pack when every clip is loaded, else the phone's
 // TTS, so a half-downloaded pack never leaves gaps.
@@ -222,6 +230,7 @@ async function loadVoicePacks() {
     voicePacks = [];
   }
   renderVoices();
+  renderSettings();
   loadClips();
 }
 
@@ -382,6 +391,7 @@ function bindSettings() {
       data.settings.voiceURI = value;
     }
     save();
+    renderSettings();
     loadClips();
   });
   for (const key of ['rate', 'volume']) {
@@ -413,8 +423,16 @@ function renderSettings() {
     for (const radio of document.querySelectorAll(`input[name="${name}"]`)) radio.checked = radio.value === s[name];
   }
   const personality = PERSONALITIES[s.personality] ? s.personality : 'plain';
+  // With a recorded voice chosen, coaches it hasn't recorded yet are marked as using the phone voice.
+  const pack = chosenPack();
+  for (const option of $('set-personality').options) {
+    const { label } = PERSONALITIES[option.value];
+    option.textContent = pack && !packHas(pack, option.value) ? `${label} (phone voice)` : label;
+  }
   $('set-personality').value = personality;
-  $('coach-blurb').textContent = PERSONALITIES[personality].blurb;
+  $('coach-blurb').textContent = pack && !packHas(pack, personality)
+    ? `${PERSONALITIES[personality].blurb}. Not recorded in ${pack.label} yet`
+    : PERSONALITIES[personality].blurb;
   $('set-rate').value = s.rate;
   $('set-volume').value = s.volume;
   $('out-rate').textContent = `${s.rate.toFixed(1)}×`;
@@ -426,6 +444,13 @@ const isEnglish = (voice) => /^en([-_]|$)/i.test(voice.lang);
 
 // "Microsoft David - English (United States)" → "David"; Android's "English United States" stays.
 const voiceLabel = (voice) => voice.name.replace(/^(Microsoft|Google)\s+/, '').replace(/\s+-\s+English.*$/, '');
+
+// "Male, deep (2 of 4 coaches)" while a pack is still being recorded.
+function packLabel(pack) {
+  const total = Object.keys(PERSONALITIES).length;
+  const have = pack.personalities?.length ?? total;
+  return have < total ? `${pack.label} (${have} of ${total} coaches)` : pack.label;
+}
 
 function optionGroup(label, options) {
   const group = document.createElement('optgroup');
@@ -446,14 +471,14 @@ function renderVoices() {
   const phone = [new Option('Phone default', 'tts:'), ...voices.map((v) => new Option(voiceLabel(v), `tts:${v.voiceURI}`))];
   if (voicePacks.length) {
     sel.replaceChildren(
-      optionGroup('Recorded (AI voices)', voicePacks.map((p) => new Option(p.label, `pack:${p.id}`))),
+      optionGroup('Recorded (AI voices)', voicePacks.map((p) => new Option(packLabel(p), `pack:${p.id}`))),
       optionGroup('Phone voices', phone),
     );
   } else {
     sel.replaceChildren(...phone);
   }
-  const pack = activePack();
-  sel.value = pack ? `pack:${pack}` : `tts:${data.settings.voiceURI}`;
+  const pack = chosenPack();
+  sel.value = pack ? `pack:${pack.id}` : `tts:${data.settings.voiceURI}`;
 }
 
 // ---------- combos view ----------

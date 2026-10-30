@@ -274,29 +274,45 @@ async function missingClips(pack) {
   return jobs;
 }
 
-// A pack is listed only when every clip for every personality exists.
-async function complete(id) {
+// The personalities of a pack that have every clip, so the app can use a voice before all four
+// coaches are recorded.
+async function completePersonalities(id) {
+  const done = [];
   for (const personalityId of Object.keys(PERSONALITIES)) {
+    let all = true;
     for (const clip of clipScript(personalityId)) {
-      if (!await exists(join(voicesDir, id, personalityId, `${clip.key}.mp3`))) return false;
+      if (!await exists(join(voicesDir, id, personalityId, `${clip.key}.mp3`))) {
+        all = false;
+        break;
+      }
     }
+    if (all) done.push(personalityId);
   }
-  return true;
+  return done;
 }
 
-// Rewrites voices/index.json with every complete pack (keeping ones this run didn't touch).
+// Rewrites voices/index.json with every pack that has at least one complete coach, and which
+// coaches those are (keeping packs this run didn't touch).
 async function updateIndex(labels) {
   const indexFile = join(voicesDir, 'index.json');
   const index = await readFile(indexFile, 'utf8').then(JSON.parse, () => ({ packs: [] }));
   const byId = new Map(index.packs.map((p) => [p.id, p]));
   for (const [id, label] of labels) byId.set(id, { id, label });
   const listed = [];
-  for (const p of byId.values()) if (await complete(p.id)) listed.push(p);
+  for (const p of byId.values()) {
+    const personalities = await completePersonalities(p.id);
+    if (personalities.length) listed.push({ id: p.id, label: p.label, personalities });
+  }
   await writeFile(indexFile, `${JSON.stringify({ packs: listed }, null, 2)}\n`);
   return listed;
 }
 
-async function buildPack(pack, jobs, workDir, limiter, stats) {
+const describe = (listed) => listed.map((p) => (p.personalities.length === Object.keys(PERSONALITIES).length
+  ? p.id : `${p.id} (${p.personalities.join(', ')})`)).join('; ');
+
+// onCoachDone runs after each personality's clips are made, so voices/index.json lists a coach
+// as soon as it's ready.
+async function buildPack(pack, jobs, workDir, limiter, stats, onCoachDone = async () => {}) {
   const id = packId(pack);
   const total = jobs.length;
   let made = 0;
@@ -317,6 +333,7 @@ async function buildPack(pack, jobs, workDir, limiter, stats) {
         await finish(job.raw, job.out);
         onClip();
       }
+      await onCoachDone();
       continue;
     }
     for (const kind of Object.keys(BATCH_SIZE)) {
@@ -325,6 +342,7 @@ async function buildPack(pack, jobs, workDir, limiter, stats) {
         await makeBatch(limiter, pack, personalityId, batch, workDir, onClip, stats);
       }
     }
+    await onCoachDone();
   }
   process.stdout.write('\n');
 }
@@ -368,15 +386,15 @@ async function main() {
         console.log(`${packId(pack)}: already complete`);
         continue;
       }
-      await buildPack(pack, jobs, workDir, limiter, stats);
+      await buildPack(pack, jobs, workDir, limiter, stats, () => updateIndex(labels));
       const listed = await updateIndex(labels);
-      console.log(`[${clock()}] ${packId(pack)} done. Ready to publish: ${listed.map((p) => p.id).join(', ')}`);
+      console.log(`[${clock()}] ${packId(pack)} done. Ready to publish: ${describe(listed)}`);
     }
     const listed = await updateIndex(labels);
     if (provider === 'openai') {
       console.log(`${stats.requests} requests made; ${stats.resplits} batch${stats.resplits === 1 ? '' : 'es'} had to be split up and redone.`);
     }
-    console.log(`voices/index.json lists: ${listed.map((p) => p.id).join(', ') || 'nothing'}`);
+    console.log(`voices/index.json lists: ${describe(listed) || 'nothing'}`);
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }
