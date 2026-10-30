@@ -26,7 +26,8 @@ test('formatting for display and speech', () => {
   assert.equal(formatCombo([1, 2, 3]), '1-2-3');
   assert.equal(comboNames([1, 2, 3, 4, 5, 6]), 'jab, cross, lead hook, rear hook, lead uppercut, rear uppercut');
   assert.equal(comboSpeech([1, 2, 3], 'numbers'), '1 2 3');
-  assert.equal(comboSpeech([1, 2, 3], 'names'), 'jab, cross, lead hook');
+  assert.equal(comboSpeech([1, 2, 3], 'names'), 'jab, cross, leed hook');
+  assert.equal(comboSpeech([5, 6, 4], 'names'), 'leed uppercut, rear uppercut, rear hook');
 });
 
 test('starter set parses and only uses punches 1-4', () => {

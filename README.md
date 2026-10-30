@@ -18,7 +18,15 @@ backend, no build step and no dependencies.
 - Five preset drill lists to start with: Jab & cross, Lead hook, Rear hook, Uppercuts, Long
   combos (`PRESET_DRILLS` in `src/combos.js`). They're normal saved drills, so you can edit or
   delete them; a deleted preset doesn't come back.
-- Voice picker (installed TTS voices), rate and volume.
+- Voice picker (installed English TTS voices only), rate and volume. "Lead" is spoken as
+  "leed" so engines don't say the metal.
+- Coach personality: Plain (just combos), Encouraging, Stoic or Drill sergeant. A personality
+  adds a "round coming up" line 3.5 s before each round, a line with the 10-second warning and
+  after the end bell, and sometimes a short technique cue after a combo (only when the gap to
+  the next combo is at least 4 s). It also shifts pitch and pace a little. TTS voices can't
+  change emotion, so the personality is in the words. Lines live in `src/personalities.js`.
+- Male/female: the browser doesn't expose voice gender. On Android, Chrome uses the voice chosen
+  per accent in Android's Google text-to-speech settings; the app explains how to change it.
 - Screen Wake Lock during a session, with a warning banner if it isn't available.
 - Settings and drills saved in `localStorage`. Works offline once loaded.
 
@@ -66,7 +74,8 @@ index.html            UI markup
 css/styles.css        dark, mobile-first styles
 src/timer.js          timer engine: timeline, timed events, pausable clock (pure)
 src/combos.js         combo generator: parsing, names, picker, per-round callout plan (pure)
-src/session.js        joins timer + callouts into one event list (pure)
+src/session.js        joins timer + callouts + coach cues into one event list (pure)
+src/personalities.js  coach lines, pitch and pace per personality (pure)
 src/storage.js        settings + drills persistence (localStorage, injectable backend)
 src/speech.js         TTS (Web Speech API)
 src/audio.js          bell / warning sounds (Web Audio)

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSession, resolveCombos } from '../src/session.js';
+import { buildSession, resolveCombos, ROUND_SOON_MS } from '../src/session.js';
 import { STARTER_COMBOS } from '../src/combos.js';
 import { DEFAULT_SETTINGS } from '../src/storage.js';
 
@@ -24,6 +24,21 @@ test('warning toggle controls the 10-second warning', () => {
   const off = buildSession(settings({ warning: false }), [[1]]);
   assert.equal(on.events.filter((e) => e.type === 'warning').length, DEFAULT_SETTINGS.rounds);
   assert.equal(off.events.filter((e) => e.type === 'warning').length, 0);
+});
+
+test('round-coming-up cue lands before each round that has a get-ready or rest in front', () => {
+  const s = settings({ roundSec: 60, restSec: 30, rounds: 3, getReadySec: 10 });
+  const { segments, events } = buildSession(s, [[1]]);
+  const cues = events.filter((e) => e.type === 'cue');
+  const rounds = segments.filter((x) => x.kind === 'round');
+  assert.deepEqual(cues.map((c) => c.round), [1, 2, 3]);
+  cues.forEach((c, i) => assert.equal(c.t, rounds[i].startMs - ROUND_SOON_MS));
+
+  const noReady = buildSession(settings({ getReadySec: 0, rounds: 2 }), [[1]]);
+  assert.deepEqual(noReady.events.filter((e) => e.type === 'cue').map((c) => c.round), [2]);
+
+  const shortReady = buildSession(settings({ getReadySec: 4, rounds: 1 }), [[1]]);
+  assert.equal(shortReady.events.some((e) => e.type === 'cue'), false);
 });
 
 test('no combos means a plain round timer', () => {

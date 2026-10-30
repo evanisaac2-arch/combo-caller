@@ -104,10 +104,24 @@
       </label>
 
       <h2>Voice</h2>
+      <div class="field-label">Coach</div>
+      <div class="segmented grid2" id="personalities"></div>
+
       <label class="field">
-        <span>Voice</span>
+        <span>Voice (English)</span>
         <select id="set-voice"></select>
       </label>
+      <details class="hint-box">
+        <summary>Want a male or female voice?</summary>
+        <p>On Android, Chrome uses the voice Android's text-to-speech is set to for each accent, so male or female is picked there:</p>
+        <ol>
+          <li>Open Android <b>Settings</b> and search <b>Text-to-speech</b>.</li>
+          <li>Tap the gear next to <b>Speech Services by Google</b>.</li>
+          <li><b>Install voice data</b> → <b>English (United States)</b> (or another accent).</li>
+          <li>Pick a voice; tap it to hear it. Then reopen this app.</li>
+        </ol>
+        <p>Each accent in the list above can have its own voice, so you can set, say, US to female and UK to male and switch here.</p>
+      </details>
       <label class="field">
         <span>Rate <output id="out-rate"></output></span>
         <input type="range" id="set-rate" min="0.5" max="2" step="0.1">

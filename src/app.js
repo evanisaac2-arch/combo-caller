@@ -3,7 +3,8 @@
 
 import { TimerEngine } from './timer.js';
 import { buildSession, resolveCombos, WARNING_SEC } from './session.js';
-import { PUNCH_NAMES, STARTER_COMBOS, parseCombo, formatCombo, comboNames, comboSpeech } from './combos.js';
+import { PUNCH_NAMES, STARTER_COMBOS, parseCombo, formatCombo, comboNames, comboSpeech, calloutGapMs } from './combos.js';
+import { PERSONALITIES, personalityLine, calloutLine, voiceTuning } from './personalities.js';
 import { createStorage } from './storage.js';
 import { createSpeech } from './speech.js';
 import { createBeeper } from './audio.js';
@@ -12,6 +13,8 @@ import { createWakeLock } from './wakelock.js';
 // Events this late (phone asleep, tab throttled) are skipped rather than replayed in a burst.
 const STALE_EVENT_MS = 1500;
 const TICK_MS = 100;
+// The end-of-round line waits for the bell to finish.
+const AFTER_BELL_MS = 1200;
 
 const $ = (id) => document.getElementById(id);
 const storage = createStorage();
@@ -22,6 +25,7 @@ const wakeLock = createWakeLock({ onChange: onWakeLockChange });
 
 let engine = null;
 let ticker = null;
+let lineTimer = null;
 let builder = [];
 let editing = blankDrill();
 let dirty = false;
@@ -95,6 +99,7 @@ function startPause() {
 function reset() {
   engine = null;
   stopTicker();
+  clearTimeout(lineTimer);
   speech.cancel();
   wakeLock.release();
   showCombo(null);
@@ -118,6 +123,7 @@ function tick() {
 
 function handleEvent(ev, { lateMs }) {
   const fresh = lateMs <= STALE_EVENT_MS;
+  const personality = data.settings.personality;
   switch (ev.type) {
     case 'phase':
       if (ev.kind === 'round') {
@@ -126,18 +132,32 @@ function handleEvent(ev, { lateMs }) {
         showCombo(null);
       }
       break;
+    case 'cue':
+      if (fresh) {
+        const last = ev.round === engine.totalRounds && engine.totalRounds > 1;
+        say(personalityLine(personality, last ? 'lastRoundSoon' : 'roundSoon', { round: ev.round }));
+      }
+      break;
     case 'round-end':
       speech.cancel();
       showCombo(null);
-      if (fresh) beeper.bell();
+      if (fresh) {
+        beeper.bell();
+        const key = ev.round === engine.totalRounds ? 'done' : 'roundEnd';
+        sayAfterBell(personalityLine(personality, key));
+      }
       break;
     case 'warning':
-      if (fresh) beeper.warning();
+      if (fresh) {
+        beeper.warning();
+        say(personalityLine(personality, 'warning'));
+      }
       break;
     case 'callout':
       if (fresh) {
         showCombo(ev.punches);
-        speech.speak(comboSpeech(ev.punches, data.settings.style), voiceOptions());
+        const gapMs = calloutGapMs(ev.punches, data.settings);
+        say(calloutLine(personality, ev.punches, data.settings.style, gapMs));
       }
       break;
     case 'done':
@@ -147,9 +167,20 @@ function handleEvent(ev, { lateMs }) {
   }
 }
 
+function say(text) {
+  if (text) speech.speak(text, voiceOptions());
+}
+
+function sayAfterBell(text) {
+  clearTimeout(lineTimer);
+  if (text) lineTimer = setTimeout(() => engine && say(text), AFTER_BELL_MS);
+}
+
+// The rate slider scales the personality's own pace.
 function voiceOptions() {
-  const { voiceURI, rate, volume } = data.settings;
-  return { voiceURI, rate, volume };
+  const { voiceURI, rate, volume, personality } = data.settings;
+  const tuning = voiceTuning(personality);
+  return { voiceURI, rate: rate * tuning.rate, pitch: tuning.pitch, volume };
 }
 
 function showCombo(punches) {
@@ -172,6 +203,7 @@ function sourceSummary() {
     s.repeatOne ? 'one combo per round' : null,
     `every ${s.intervalSec}s${s.scaleByLength ? '+' : ''}`,
     s.style,
+    s.personality !== 'plain' ? PERSONALITIES[s.personality]?.label.toLowerCase() : null,
   ].filter(Boolean).join(' · ');
 }
 
@@ -260,7 +292,7 @@ function bindSettings() {
       render();
     });
   }
-  for (const name of ['style', 'order']) {
+  for (const name of ['style', 'order', 'personality']) {
     for (const radio of document.querySelectorAll(`input[name="${name}"]`)) {
       radio.addEventListener('change', () => {
         data.settings[name] = radio.value;
@@ -286,8 +318,21 @@ function bindSettings() {
     });
   }
   $('btn-test-voice').addEventListener('click', () => {
-    speech.speak(comboSpeech([1, 2, 3], data.settings.style), voiceOptions());
+    const intro = personalityLine(data.settings.personality, 'roundSoon', { round: 1 });
+    say([intro, comboSpeech([1, 2, 3], data.settings.style)].filter(Boolean).join(' '));
   });
+}
+
+function buildPersonalities() {
+  const box = $('personalities');
+  for (const [id, p] of Object.entries(PERSONALITIES)) {
+    const label = document.createElement('label');
+    label.innerHTML = '<input type="radio" name="personality"><span><b></b><small></small></span>';
+    label.querySelector('input').value = id;
+    label.querySelector('b').textContent = p.label;
+    label.querySelector('small').textContent = p.blurb;
+    box.append(label);
+  }
 }
 
 function sourceOptions() {
@@ -298,7 +343,7 @@ function renderSettings() {
   const s = data.settings;
   for (const cfg of STEPPERS) cfg.output.textContent = cfg.format(s[cfg.key]);
   for (const [id, key] of Object.entries(TOGGLES)) $(id).checked = s[key];
-  for (const name of ['style', 'order']) {
+  for (const name of ['style', 'order', 'personality']) {
     for (const radio of document.querySelectorAll(`input[name="${name}"]`)) radio.checked = radio.value === s[name];
   }
   const source = $('set-source');
@@ -311,11 +356,19 @@ function renderSettings() {
   $('settings-note').hidden = !isActive();
 }
 
+const isEnglish = (voice) => /^en([-_]|$)/i.test(voice.lang);
+
 function renderVoices() {
   const sel = $('set-voice');
-  const voices = speech.voices().slice().sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
+  const all = speech.voices();
+  const voices = all.filter(isEnglish).sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
   sel.replaceChildren(new Option('Phone default', ''), ...voices.map((v) => new Option(`${v.name} (${v.lang})`, v.voiceURI)));
-  sel.value = voices.some((v) => v.voiceURI === data.settings.voiceURI) ? data.settings.voiceURI : '';
+  // Drop a saved voice that's no longer offered (e.g. a non-English one picked earlier).
+  if (all.length && data.settings.voiceURI && !voices.some((v) => v.voiceURI === data.settings.voiceURI)) {
+    data.settings.voiceURI = '';
+    save();
+  }
+  sel.value = data.settings.voiceURI;
   sel.disabled = !speech.supported;
 }
 
@@ -516,6 +569,7 @@ $('btn-reset').addEventListener('click', reset);
 
 buildSteppers();
 buildKeypad();
+buildPersonalities();
 bindSettings();
 bindCombos();
 speech.onVoicesChanged(renderVoices);

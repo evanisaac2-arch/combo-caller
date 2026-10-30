@@ -18,7 +18,7 @@ export function createSpeech(synth = globalThis.speechSynthesis, Utterance = glo
     },
 
     // Interrupts anything still being said so a callout is never queued behind a stale one.
-    speak(text, { voiceURI = '', rate = 1, volume = 1 } = {}) {
+    speak(text, { voiceURI = '', rate = 1, pitch = 1, volume = 1 } = {}) {
       if (!supported) return;
       synth.cancel();
       const u = new Utterance(text);
@@ -28,6 +28,7 @@ export function createSpeech(synth = globalThis.speechSynthesis, Utterance = glo
         u.lang = voice.lang;
       }
       u.rate = rate;
+      u.pitch = pitch;
       u.volume = volume;
       u.onend = () => {
         if (current === u) current = null;

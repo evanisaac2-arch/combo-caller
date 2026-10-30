@@ -10,6 +10,13 @@ export const PUNCH_NAMES = Object.freeze({
   6: 'rear uppercut',
 });
 
+// What TTS is given for each punch. "lead" is spelled "leed" so engines don't say the metal.
+export const SPOKEN_NAMES = Object.freeze({
+  ...PUNCH_NAMES,
+  3: 'leed hook',
+  5: 'leed uppercut',
+});
+
 export const STARTER_COMBOS = Object.freeze([
   '1', '1-1', '1-2', '1-1-2', '1-2-3', '2-3', '1-2-3-2', '3-2', '1-3', '2-3-2',
 ]);
@@ -51,7 +58,7 @@ export function comboNames(punches) {
 
 // Text handed to TTS. Numbers are space-separated so engines read "one two three", not "one minus two".
 export function comboSpeech(punches, style = 'numbers') {
-  return style === 'names' ? comboNames(punches) : punches.join(' ');
+  return style === 'names' ? punches.map((p) => SPOKEN_NAMES[p]).join(', ') : punches.join(' ');
 }
 
 // combos: array of punch arrays. order: 'random' | 'inorder'.

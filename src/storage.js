@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   order: 'random', // random | inorder
   repeatOne: false,
   voiceURI: '',
+  personality: 'plain', // a key of PERSONALITIES
   rate: 1,
   volume: 1,
 });
