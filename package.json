@@ -1,0 +1,12 @@
+{
+  "name": "combo-caller",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Boxing round timer that calls out punch combos over your music. Installable PWA, no backend.",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.mjs 8080",
+    "test": "node --test",
+    "icons": "node scripts/make-icons.mjs"
+  }
+}

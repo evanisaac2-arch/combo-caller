@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e0f12">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Boxing round timer that calls out punch combos over your music.">
+  <title>Combo Caller</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+  <script type="module" src="src/app.js"></script>
+</head>
+<body data-phase="idle">
+  <div id="banner" class="banner" role="alert" hidden></div>
+
+  <main>
+    <!-- Timer -->
+    <section class="view" data-view="timer">
+      <div class="phase" id="phase">Ready</div>
+      <div class="clock" id="clock">3:00</div>
+      <div class="round-info" id="round-info"></div>
+
+      <div class="combo">
+        <div class="combo-numbers" id="combo-numbers">&nbsp;</div>
+        <div class="combo-names" id="combo-names">&nbsp;</div>
+      </div>
+
+      <div class="source-info" id="source-info"></div>
+
+      <div class="controls">
+        <button id="btn-start" class="btn btn-primary btn-huge">Start</button>
+        <button id="btn-reset" class="btn btn-huge">Reset</button>
+      </div>
+    </section>
+
+    <!-- Combos -->
+    <section class="view" data-view="combos" hidden>
+      <h2>Drill lists</h2>
+      <label class="field">
+        <span>Drill</span>
+        <select id="drill-select"></select>
+      </label>
+      <label class="field">
+        <span>Name</span>
+        <input id="drill-name" type="text" placeholder="e.g. Jab-cross day" autocomplete="off">
+      </label>
+
+      <h3>Build a combo</h3>
+      <div class="builder-display" id="builder-display"></div>
+      <div class="keypad" id="keypad"></div>
+      <div class="row">
+        <button id="kp-back" class="btn">Undo</button>
+        <button id="kp-add" class="btn btn-primary">Add combo</button>
+      </div>
+      <div class="row">
+        <input id="combo-text" type="text" inputmode="numeric" placeholder="or type: 1-2-3" autocomplete="off">
+        <button id="combo-text-add" class="btn">Add</button>
+      </div>
+      <p class="msg" id="combo-msg" aria-live="polite"></p>
+
+      <h3>Combos in this drill</h3>
+      <ul id="drill-combos" class="combo-list"></ul>
+      <div class="row">
+        <button id="drill-save" class="btn btn-primary">Save drill</button>
+        <button id="drill-use" class="btn">Use for callouts</button>
+      </div>
+      <button id="drill-delete" class="btn btn-danger btn-block">Delete drill</button>
+
+      <h3>Starter set</h3>
+      <ul id="starter-list" class="combo-list starter"></ul>
+    </section>
+
+    <!-- Settings -->
+    <section class="view" data-view="settings" hidden>
+      <p class="msg" id="settings-note" hidden>Timer and callout changes apply after you Reset.</p>
+
+      <h2>Timer</h2>
+      <div id="steppers-timer"></div>
+      <label class="toggle"><input type="checkbox" id="set-warning"><span>10-second warning</span></label>
+
+      <h2>Callouts</h2>
+      <div id="steppers-callouts"></div>
+      <label class="toggle"><input type="checkbox" id="set-scale"><span>Wait longer after longer combos</span></label>
+      <label class="toggle"><input type="checkbox" id="set-repeat"><span>Repeat one combo for the whole round</span></label>
+
+      <div class="field-label">Call out as</div>
+      <div class="segmented">
+        <label><input type="radio" name="style" value="numbers"><span>Numbers<small>1-2-3</small></span></label>
+        <label><input type="radio" name="style" value="names"><span>Names<small>jab, cross…</small></span></label>
+      </div>
+
+      <div class="field-label">Order</div>
+      <div class="segmented">
+        <label><input type="radio" name="order" value="random"><span>Random</span></label>
+        <label><input type="radio" name="order" value="inorder"><span>In order</span></label>
+      </div>
+
+      <label class="field">
+        <span>Combos from</span>
+        <select id="set-source"></select>
+      </label>
+
+      <h2>Voice</h2>
+      <label class="field">
+        <span>Voice</span>
+        <select id="set-voice"></select>
+      </label>
+      <label class="field">
+        <span>Rate <output id="out-rate"></output></span>
+        <input type="range" id="set-rate" min="0.5" max="2" step="0.1">
+      </label>
+      <label class="field">
+        <span>Volume <output id="out-volume"></output></span>
+        <input type="range" id="set-volume" min="0" max="1" step="0.05">
+      </label>
+      <button id="btn-test-voice" class="btn btn-block">Test voice</button>
+    </section>
+  </main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="timer" aria-selected="true">Timer</button>
+    <button class="tab" role="tab" data-tab="combos" aria-selected="false">Combos</button>
+    <button class="tab" role="tab" data-tab="settings" aria-selected="false">Settings</button>
+  </nav>
+</body>
+</html>
