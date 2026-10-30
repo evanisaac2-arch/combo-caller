@@ -51,7 +51,16 @@ npm run voices -- --packs female    # just one
 
 This writes `voices/<pack>/<coach>/<clip>.mp3` and `voices/index.json`; commit and push them and
 the packs appear under Settings → Voice → Recorded. Re-running only makes missing clips (add
-`--force` to redo them, e.g. after changing a coach line). `--provider sapi` builds `test-*` packs
+`--force` to redo them, e.g. after changing a coach line).
+
+Rate limits: the script stays under your account's limits on its own (defaults 10 requests per
+minute and 50 per day; set yours with `--rpm` and `--rpd`). It spaces requests for the minute
+limit, remembers the last 24 hours of requests in `voices/.openai-usage.json` (git-ignored), and
+when the day's allowance is used it waits until more is allowed. If OpenAI still answers "rate
+limited", it waits as long as OpenAI says. Each clip is saved the moment it's done (written under a
+temporary name and renamed), so you can close it any time and run it again later. At 50 per day,
+one pack (174 clips) takes about 4 days and all four about 14; packs are listed in the app as
+each one finishes. `--provider sapi` builds `test-*` packs
 with Windows' built-in voices to test the pipeline without a key; those are git-ignored.
 
 The clips are AI-generated voices, not recordings of real people. Clip speed follows the Speed

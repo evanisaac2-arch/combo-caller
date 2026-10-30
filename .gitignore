@@ -4,3 +4,5 @@ Thumbs.db
 desktop.ini
 .claude/
 voices/test-*/
+voices/.openai-usage.json
+voices/**/*.part.mp3
