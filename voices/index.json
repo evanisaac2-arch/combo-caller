@@ -35,7 +35,9 @@
       "label": "Female, bright",
       "personalities": [
         "plain",
-        "stoic"
+        "encouraging",
+        "stoic",
+        "sergeant"
       ]
     }
   ]
