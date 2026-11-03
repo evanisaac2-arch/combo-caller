@@ -14,7 +14,28 @@
       "id": "male",
       "label": "Male",
       "personalities": [
-        "plain"
+        "plain",
+        "encouraging",
+        "stoic",
+        "sergeant"
+      ]
+    },
+    {
+      "id": "female",
+      "label": "Female",
+      "personalities": [
+        "plain",
+        "encouraging",
+        "stoic",
+        "sergeant"
+      ]
+    },
+    {
+      "id": "female-bright",
+      "label": "Female, bright",
+      "personalities": [
+        "plain",
+        "stoic"
       ]
     }
   ]
