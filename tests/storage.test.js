@@ -47,6 +47,17 @@ test('upgrade from the five-preset version: Starter set is added first, old sour
   assert.deepEqual(drills.map((d) => d.id), ['preset-starter', ...five.slice(1).map((d) => d.id), 'mine']);
 });
 
+test('an unedited old Jab & rear hook preset becomes Hook pairs; an edited one is kept', () => {
+  const backend = memoryBackend();
+  const old = { id: 'preset-jab-rear-hook', name: 'Jab & rear hook', combos: ['1-4'] };
+  backend.setItem(STORAGE_KEY, JSON.stringify({ settings: DEFAULT_SETTINGS, drills: [old], seededPresets: presetIds }));
+  const revised = createStorage(backend).load().drills.find((d) => d.id === old.id);
+  assert.deepEqual(revised, PRESET_DRILLS.find((d) => d.id === old.id));
+
+  backend.setItem(STORAGE_KEY, JSON.stringify({ settings: DEFAULT_SETTINGS, drills: [{ ...old, combos: ['1-4', '1-1-4'] }], seededPresets: presetIds }));
+  assert.deepEqual(createStorage(backend).load().drills[0].combos, ['1-4', '1-1-4']);
+});
+
 test('a deleted Starter set stays deleted', () => {
   const backend = memoryBackend();
   const store = createStorage(backend);

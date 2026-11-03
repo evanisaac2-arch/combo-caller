@@ -28,7 +28,7 @@ export const PRESET_DRILLS = Object.freeze([
   { id: 'preset-jab-cross', name: 'Jab & cross', combos: ['1', '1-1', '1-2', '1-1-2', '2-1-2', '1-2-1-2'] },
   { id: 'preset-lead-hook', name: 'Lead hook', combos: ['1-3', '1-2-3', '3-2', '1-1-3', '2-3-2', '1-2-3-2'] },
   { id: 'preset-rear-hook', name: 'Rear hook', combos: ['1-4', '3-4', '1-3-4', '1-2-3-4', '5-4'] },
-  { id: 'preset-jab-rear-hook', name: 'Jab & rear hook', combos: ['1-4'] },
+  { id: 'preset-jab-rear-hook', name: 'Hook pairs', combos: ['1-4', '2-3'] },
   { id: 'preset-uppercuts', name: 'Uppercuts', combos: ['1-6', '5-2', '6-3', '2-5-2', '1-6-3-2', '5-6'] },
   { id: 'preset-long', name: 'Long combos', combos: ['1-2-3-2', '1-2-5-2', '1-6-3-2', '1-1-2-3-2', '2-3-2-3', '1-2-3-4-2'] },
 ]);
@@ -76,7 +76,8 @@ export function createPicker(combos, { order = 'random', rng = Math.random } = {
         return combos[index];
       }
       let k = Math.floor(rng() * combos.length);
-      if (combos.length > 1 && k === last) k = (k + 1) % combos.length;
+      // With only two combos, skipping repeats would just alternate them, so repeats are allowed.
+      if (combos.length > 2 && k === last) k = (k + 1) % combos.length;
       last = k;
       return combos[k];
     },

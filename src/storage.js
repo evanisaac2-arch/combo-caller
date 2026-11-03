@@ -58,6 +58,20 @@ function seedPresets(drills, seeded) {
   });
 }
 
+// Presets whose contents changed after they shipped: a saved copy still exactly as it was first
+// given is brought up to date; one the user has edited is left alone.
+const PRESET_REVISIONS = { 'preset-jab-rear-hook': { name: 'Jab & rear hook', combos: ['1-4'] } };
+
+function revisePresets(drills) {
+  for (const drill of drills) {
+    const old = PRESET_REVISIONS[drill.id];
+    const preset = PRESET_DRILLS.find((p) => p.id === drill.id);
+    if (!old || !preset || drill.name !== old.name || drill.combos.join() !== old.combos.join()) continue;
+    drill.name = preset.name;
+    drill.combos = [...preset.combos];
+  }
+}
+
 // One-time changes for settings saved by an older version. Version 2: get-ready went from a
 // 10 s default (0–60 s) to 3 s (0–10 s), and punch names became the default call-out style.
 function upgrade(settings, version) {
@@ -89,6 +103,7 @@ export function createStorage(backend = globalThis.localStorage) {
         upgrade(settings, Number.isInteger(data.settingsVersion) ? data.settingsVersion : 1);
       }
       const drills = isObject(data) && Array.isArray(data.drills) ? data.drills.filter(isDrill) : [];
+      revisePresets(drills);
       seedPresets(drills, seededIds(data));
       return { settings, drills };
     },

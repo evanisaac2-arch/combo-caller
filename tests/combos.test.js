@@ -58,6 +58,12 @@ test('picker random never repeats the same combo twice in a row', () => {
   for (let i = 1; i < out.length; i++) assert.notEqual(out[i], out[i - 1]);
 });
 
+test('picker random with two combos can repeat (otherwise it would only alternate)', () => {
+  const picker = createPicker([[1, 4], [2, 3]], { order: 'random', rng: seq(0, 0, 0.9) });
+  const out = Array.from({ length: 3 }, () => formatCombo(picker.next()));
+  assert.deepEqual(out, ['1-4', '1-4', '2-3']);
+});
+
 test('picker with one combo always returns it; empty list throws', () => {
   const picker = createPicker([[1, 2]], { rng: seq(0.9) });
   assert.deepEqual(picker.next(), [1, 2]);
