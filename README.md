@@ -15,7 +15,7 @@ backend, no build step and no dependencies.
   1 jab · 2 cross · 3 lead hook · 4 rear hook · 5 lead uppercut · 6 rear uppercut.
 - Combos come from saved drill lists, picked with one tap on the Timer page (Combo Builder: tap
   1–6 or type `1-2-3`). Random or in order, or repeat one combo for the whole round.
-- Six preset drill lists to start with: Starter set, Jab & cross, Lead hook, Rear hook,
+- Seven preset drill lists to start with: Starter set, Jab & cross, Lead hook, Rear hook, Jab & rear hook,
   Uppercuts, Long combos (`PRESET_DRILLS` in `src/combos.js`). They're normal saved drills, so
   you can edit or delete them; a deleted preset doesn't come back. Presets added in a later
   version are given to existing users once. If every drill is deleted, the starter combos are
