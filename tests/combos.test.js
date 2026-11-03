@@ -35,6 +35,18 @@ test('slips: SL/SR anywhere in a combo, any case, with or without separators', (
   assert.deepEqual(parseCombo(formatCombo([1, 'sr', 2])), [1, 'sr', 2]);
 });
 
+test('body shots: "b" after any punch, mixed with moves', () => {
+  assert.deepEqual(parseCombo('1-3b-2'), [1, '3b', 2]);
+  assert.deepEqual(parseCombo('13B2'), [1, '3b', 2]);
+  assert.deepEqual(parseCombo('1 1b rr pl pv 2'), [1, '1b', 'rr', 'pl', 'pv', 2]);
+  for (const bad of ['7b', 'b', '1-bb', 'b3', 'pull']) assert.equal(parseCombo(bad), null, bad);
+  assert.equal(formatCombo([1, '3b', 'pv']), '1-3b-PV');
+  assert.equal(comboNames([1, '3b', 'rl', 'pl']), 'jab, lead hook (body), roll left, pull');
+  assert.equal(comboSpeech([1, '3b'], 'names'), 'jab leed hook body');
+  assert.equal(comboSpeech([1, '6b', 'pv'], 'numbers'), '1 6 body pivot');
+  assert.deepEqual(parseCombo(formatCombo([2, '5b', 'rr'])), [2, '5b', 'rr']);
+});
+
 test('formatting for display and speech', () => {
   assert.equal(formatCombo([1, 2, 3]), '1-2-3');
   assert.equal(comboNames([1, 2, 3, 4, 5, 6]), 'jab, cross, lead hook, rear hook, lead uppercut, rear uppercut');

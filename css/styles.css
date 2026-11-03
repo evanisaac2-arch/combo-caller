@@ -305,7 +305,12 @@ input[type="range"]:disabled { opacity: .35; }
 .builder-display.empty { color: var(--muted); font-size: 1rem; font-weight: 400; }
 
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
-.keypad-moves { grid-template-columns: repeat(2, 1fr); margin-top: 0; }
+.keypad-moves { margin-top: 12px; }
+.key-body { min-height: 48px; margin-top: 0; }
+.key-body .key-name { margin: 0 0 0 6px; }
+.key-body[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.key-body[aria-pressed="true"] .key-name { color: var(--accent-text); }
+.keypad.body-on .key { border-color: var(--accent); }
 .keypad-moves .key { min-height: 60px; }
 .keypad-moves .key-num { font-size: 1.3rem; }
 .key { min-height: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; }

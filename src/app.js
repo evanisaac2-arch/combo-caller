@@ -541,10 +541,21 @@ function buildKeypad() {
     pad.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-punch]');
       if (!btn) return;
-      builder.push(parseCombo(btn.dataset.punch)[0]);
+      const step = parseCombo(btn.dataset.punch)[0];
+      // Body applies to the next punch only, then switches itself off.
+      builder.push(bodyNext && typeof step === 'number' ? `${step}b` : step);
+      if (typeof step === 'number') setBodyNext(false);
       renderBuilder();
     });
   }
+  $('kp-body').addEventListener('click', () => setBodyNext(!bodyNext));
+}
+
+let bodyNext = false;
+function setBodyNext(on) {
+  bodyNext = on;
+  $('kp-body').setAttribute('aria-pressed', String(on));
+  $('keypad').classList.toggle('body-on', on);
 }
 
 function addCombo(punches) {
@@ -598,7 +609,7 @@ function bindCombos() {
     const input = $('combo-text');
     const punches = parseCombo(input.value);
     if (!punches) {
-      setComboMsg('Use punch numbers 1–6 and SL/SR for slips, like 1-2-SL-2.', true);
+      setComboMsg('Use punches 1–6 (add b for body, like 3b) and SL, SR, RL, RR, PL, PV for moves, like 1-3b-SL-2.', true);
       return;
     }
     addCombo(punches);
