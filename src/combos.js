@@ -46,13 +46,22 @@ export const STARTER_COMBOS = Object.freeze([
 export const PRESET_DRILLS = Object.freeze([
   { id: 'preset-starter', name: 'Starter set', combos: [...STARTER_COMBOS] },
   { id: 'preset-jab-cross', name: 'Jab & cross', combos: ['1', '1-1', '1-2', '1-1-2', '2-1-2', '1-2-1-2'] },
+  { id: 'preset-jab-rear-hook', name: 'Hook pairs', combos: ['1-4', '2-3', 'SL-3', 'SR-4'] },
+  // Between them these use every punch, every punch to the body, and every move at least once.
+  { id: 'preset-long', name: 'Long combos', combos: [
+    '1-2-3-2', '1-6-3-2', '1-2-3b-3-2', '1-1b-2-SL-2-3', '1-2-SR-4b-3', '1-2b-3-4-RL-3',
+    '1-2-3-RR-2-3', '1-2-PL-2-5b-2', '1-6b-5-2-3-PV',
+  ] },
+]);
+
+// Presets earlier versions gave out, exactly as given. A saved copy still matching one is
+// removed; one the user has edited is kept.
+export const RETIRED_PRESETS = Object.freeze([
   { id: 'preset-lead-hook', name: 'Lead hook', combos: ['1-3', '1-2-3', '3-2', '1-1-3', '2-3-2', '1-2-3-2'] },
   { id: 'preset-rear-hook', name: 'Rear hook', combos: ['1-4', '3-4', '1-3-4', '1-2-3-4', '5-4'] },
-  { id: 'preset-jab-rear-hook', name: 'Hook pairs', combos: ['1-4', '2-3', 'SL-3', 'SR-4'] },
   { id: 'preset-body', name: 'Body work', combos: ['1-2-3b', '3b-3', '1-1b-2', '2-3b-2', '1-6b-3', '1-2-5b-2'] },
   { id: 'preset-defense', name: 'Defense & counter', combos: ['1-2-SL-2', '1-SR-3', '1-2-RR-3-2', '2-3-RL-3', '1-2-PL-2', '1-2-3-PV'] },
   { id: 'preset-uppercuts', name: 'Uppercuts', combos: ['1-6', '5-2', '6-3', '2-5-2', '1-6-3-2', '5-6'] },
-  { id: 'preset-long', name: 'Long combos', combos: ['1-2-3-2', '1-2-5-2', '1-6-3-2', '1-1-2-3-2', '2-3-2-3', '1-2-3-4-2'] },
 ]);
 
 // Let the round-start bell finish before the first callout.

@@ -1,7 +1,7 @@
 // Storage: settings and saved drill lists in localStorage. The backend is injectable so a native
 // wrapper (e.g. Capacitor Preferences behind a sync cache) or a test fake can replace it.
 
-import { PRESET_DRILLS } from './combos.js';
+import { PRESET_DRILLS, RETIRED_PRESETS } from './combos.js';
 
 export const STORAGE_KEY = 'combo-caller:v1';
 export const STARTER_DRILL_ID = 'preset-starter';
@@ -65,15 +65,22 @@ const PRESET_REVISIONS = {
     { name: 'Jab & rear hook', combos: ['1-4'] },
     { name: 'Hook pairs', combos: ['1-4', '2-3'] },
   ],
+  'preset-long': [
+    { name: 'Long combos', combos: ['1-2-3-2', '1-2-5-2', '1-6-3-2', '1-1-2-3-2', '2-3-2-3', '1-2-3-4-2'] },
+  ],
 };
+
+const sameDrill = (a, b) => a.name === b.name && a.combos.join() === b.combos.join();
 
 function revisePresets(drills) {
   for (const drill of drills) {
     const preset = PRESET_DRILLS.find((p) => p.id === drill.id);
-    const isOld = (PRESET_REVISIONS[drill.id] ?? []).some((old) => drill.name === old.name && drill.combos.join() === old.combos.join());
-    if (!preset || !isOld) continue;
+    if (!preset || !(PRESET_REVISIONS[drill.id] ?? []).some((old) => sameDrill(drill, old))) continue;
     drill.name = preset.name;
     drill.combos = [...preset.combos];
+  }
+  for (let i = drills.length - 1; i >= 0; i--) {
+    if (RETIRED_PRESETS.some((r) => r.id === drills[i].id && sameDrill(drills[i], r))) drills.splice(i, 1);
   }
 }
 

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStorage, DEFAULT_SETTINGS, STORAGE_KEY } from '../src/storage.js';
-import { PRESET_DRILLS } from '../src/combos.js';
+import { PRESET_DRILLS, RETIRED_PRESETS, MOVE_NAMES, parseCombo } from '../src/combos.js';
 
 const presetIds = PRESET_DRILLS.map((d) => d.id);
 
@@ -60,6 +60,27 @@ test('an unedited old Jab & rear hook preset becomes Hook pairs; an edited one i
 
   backend.setItem(STORAGE_KEY, JSON.stringify({ settings: DEFAULT_SETTINGS, drills: [{ ...old, combos: ['1-4', '1-1-4'] }], seededPresets: presetIds }));
   assert.deepEqual(createStorage(backend).load().drills[0].combos, ['1-4', '1-1-4']);
+});
+
+test('retired presets: unedited copies are removed, edited ones kept; old Long combos updated', () => {
+  const backend = memoryBackend();
+  const lead = RETIRED_PRESETS.find((d) => d.id === 'preset-lead-hook');
+  const body = RETIRED_PRESETS.find((d) => d.id === 'preset-body');
+  const oldLong = { id: 'preset-long', name: 'Long combos', combos: ['1-2-3-2', '1-2-5-2', '1-6-3-2', '1-1-2-3-2', '2-3-2-3', '1-2-3-4-2'] };
+  backend.setItem(STORAGE_KEY, JSON.stringify({
+    settings: DEFAULT_SETTINGS,
+    drills: [structuredClone(lead), { ...body, combos: [...body.combos, '1-1'] }, oldLong],
+    seededPresets: presetIds,
+  }));
+  const { drills } = createStorage(backend).load();
+  assert.deepEqual(drills.map((d) => d.id), ['preset-body', 'preset-long']);
+  assert.deepEqual(drills[1], PRESET_DRILLS.find((d) => d.id === 'preset-long'));
+});
+
+test('Long combos uses every punch, body punch and move', () => {
+  const steps = new Set(PRESET_DRILLS.find((d) => d.id === 'preset-long').combos.flatMap(parseCombo));
+  const all = [1, 2, 3, 4, 5, 6, '1b', '2b', '3b', '4b', '5b', '6b', ...Object.keys(MOVE_NAMES)];
+  for (const s of all) assert.ok(steps.has(s), String(s));
 });
 
 test('a deleted Starter set stays deleted', () => {

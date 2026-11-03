@@ -19,10 +19,11 @@ backend, no build step and no dependencies.
   "body" existed says those combos with the phone voice until its clips are recorded.
 - Combos come from saved drill lists, picked with one tap on the Timer page (Combo Builder: tap
   1–6, Body, or a move, or type `1-3b-SL-2`). Random or in order, or repeat one combo for the whole round.
-- Nine preset drill lists to start with: Starter set, Jab & cross, Lead hook, Rear hook, Hook pairs,
-  Body work, Defense & counter, Uppercuts, Long combos (`PRESET_DRILLS` in `src/combos.js`). They're normal saved drills, so
-  you can edit or delete them; a deleted preset doesn't come back. Presets added in a later
-  version are given to existing users once. If every drill is deleted, the starter combos are
+- Four preset drill lists to start with: Starter set, Jab & cross, Hook pairs, Long combos
+  (`PRESET_DRILLS` in `src/combos.js`); Long combos uses every punch, body punch and move at least
+  once. They're normal saved drills, so you can edit or delete them; a deleted preset doesn't come
+  back. Presets added in a later version are given to existing users once; retired presets
+  (`RETIRED_PRESETS`) are removed from saved data unless the user edited them. If every drill is deleted, the starter combos are
   used.
 - Voice picker (installed English TTS voices only), rate and volume. "Lead" is spoken as
   "leed" so engines don't say the metal.
