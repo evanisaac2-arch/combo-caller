@@ -5,7 +5,16 @@
       "label": "Male, deep",
       "personalities": [
         "plain",
-        "encouraging"
+        "encouraging",
+        "stoic",
+        "sergeant"
+      ]
+    },
+    {
+      "id": "male",
+      "label": "Male",
+      "personalities": [
+        "plain"
       ]
     }
   ]
