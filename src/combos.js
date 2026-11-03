@@ -17,6 +17,19 @@ export const SPOKEN_NAMES = Object.freeze({
   5: 'leed uppercut',
 });
 
+// Defensive moves that can go anywhere in a combo. Written as letters ("1-2-SL-2") and kept as
+// lowercase strings in a combo array, next to the punch numbers.
+export const MOVE_NAMES = Object.freeze({
+  sl: 'slip left',
+  sr: 'slip right',
+});
+
+// Everything a combo can contain: punches 1–6 and the moves.
+export const STEP_NAMES = Object.freeze({ ...PUNCH_NAMES, ...MOVE_NAMES });
+const SPOKEN_STEPS = Object.freeze({ ...SPOKEN_NAMES, ...MOVE_NAMES });
+
+export const isMove = (step) => typeof step === 'string';
+
 export const STARTER_COMBOS = Object.freeze([
   '1', '1-1', '1-2', '1-1-2', '1-2-3', '2-3', '1-2-3-2', '3-2', '1-3', '2-3-2',
 ]);
@@ -40,28 +53,30 @@ export const END_QUIET_MS = 1500;
 // Floor for the scaled gap so a single jab at a short interval still leaves time to throw it.
 export const MIN_GAP_MS = 1000;
 
-// Accepts "1-2-3", "1 2 3", "1,2,3" or "123". Returns an array of punch numbers, or null if invalid.
+// Accepts "1-2-3", "1 2 3", "1,2,3" or "123", with SL/SR for slips ("1-2-SL-2", "12sl2", any case).
+// Returns an array of punch numbers and move strings, or null if invalid.
 export function parseCombo(input) {
   if (typeof input !== 'string') return null;
-  const text = input.trim();
+  const text = input.trim().toLowerCase();
   if (!text) return null;
-  const parts = /[\s,-]/.test(text) ? text.split(/[\s,-]+/).filter(Boolean) : text.split('');
-  const punches = parts.map(Number);
-  if (!punches.length || punches.some((p) => !Number.isInteger(p) || !(p in PUNCH_NAMES))) return null;
-  return punches;
+  const parts = /[\s,-]/.test(text) ? text.split(/[\s,-]+/).filter(Boolean) : text.match(/s[lr]|./g);
+  const steps = parts.map((s) => (s in MOVE_NAMES ? s : Number(s)));
+  if (!steps.length || steps.some((s) => !isMove(s) && !(Number.isInteger(s) && s in PUNCH_NAMES))) return null;
+  return steps;
 }
 
 export function formatCombo(punches) {
-  return punches.join('-');
+  return punches.map((s) => (isMove(s) ? s.toUpperCase() : s)).join('-');
 }
 
 export function comboNames(punches) {
-  return punches.map((p) => PUNCH_NAMES[p]).join(', ');
+  return punches.map((s) => STEP_NAMES[s]).join(', ');
 }
 
-// Text handed to TTS. Numbers are space-separated so engines read "one two three", not "one minus two".
+// Text handed to TTS. Numbers are space-separated so engines read "one two three", not "one minus
+// two". Slips are said in words in both styles.
 export function comboSpeech(punches, style = 'numbers') {
-  return style === 'names' ? punches.map((p) => SPOKEN_NAMES[p]).join(' ') : punches.join(' ');
+  return punches.map((s) => (style === 'names' || isMove(s) ? SPOKEN_STEPS[s] : s)).join(' ');
 }
 
 // combos: array of punch arrays. order: 'random' | 'inorder'.

@@ -22,6 +22,19 @@ test('parseCombo rejects anything outside punches 1-6', () => {
   }
 });
 
+test('slips: SL/SR anywhere in a combo, any case, with or without separators', () => {
+  assert.deepEqual(parseCombo('1-2-SL-2'), [1, 2, 'sl', 2]);
+  assert.deepEqual(parseCombo('sr 3 2'), ['sr', 3, 2]);
+  assert.deepEqual(parseCombo('12sl2'), [1, 2, 'sl', 2]);
+  assert.deepEqual(parseCombo('SL'), ['sl']);
+  for (const bad of ['s', 'sx', '1-s-2', 'slip']) assert.equal(parseCombo(bad), null, bad);
+  assert.equal(formatCombo([1, 'sl', 2]), '1-SL-2');
+  assert.equal(comboNames([1, 'sl', 2, 'sr']), 'jab, slip left, cross, slip right');
+  assert.equal(comboSpeech([1, 'sl', 3], 'numbers'), '1 slip left 3');
+  assert.equal(comboSpeech([1, 'sl', 3], 'names'), 'jab slip left leed hook');
+  assert.deepEqual(parseCombo(formatCombo([1, 'sr', 2])), [1, 'sr', 2]);
+});
+
 test('formatting for display and speech', () => {
   assert.equal(formatCombo([1, 2, 3]), '1-2-3');
   assert.equal(comboNames([1, 2, 3, 4, 5, 6]), 'jab, cross, lead hook, rear hook, lead uppercut, rear uppercut');

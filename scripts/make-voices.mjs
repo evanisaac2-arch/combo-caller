@@ -88,14 +88,14 @@ function inputFor(clip) {
 // Newest file name for a clip (a re-recorded clip gets a new one, see CLIP_REVISIONS).
 const clipPath = (id, personalityId, key) => join(voicesDir, id, personalityId, `${clipFiles(key)[0]}.mp3`);
 
-const kindOf = (clip) => (/^(num|name)-/.test(clip.key) ? 'punch' : clip.key.startsWith('round-') ? 'round' : 'line');
+const kindOf = (clip) => (/^(num|name|move)-/.test(clip.key) ? 'punch' : clip.key.startsWith('round-') ? 'round' : 'line');
 
 function instructionsFor(personalityId, clip, batchSize = 1) {
   let text = PERSONALITIES[personalityId].instructions;
   if (kindOf(clip) === 'punch') {
     text += batchSize > 1
-      ? ' Each line is a single punch callout: say it quickly and crisply.'
-      : ' This is a single punch callout: say it quickly and crisply, nothing else.';
+      ? ' Each line is a single punch or slip callout: say it quickly and crisply.'
+      : ' This is a single punch or slip callout: say it quickly and crisply, nothing else.';
     text += ' "Lead" means the front hand: say it like "leader" (rhymes with "need"), short and clipped, never drawn out.';
   }
   if (batchSize > 1) {

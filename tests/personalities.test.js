@@ -59,6 +59,7 @@ test('clip script covers every key a phrase can use, with unique keys', () => {
     const used = [
       ...calloutPhrase(id, [1, 2, 3, 4, 5, 6], 'numbers', 10000, always).keys,
       ...calloutPhrase(id, [1, 2, 3, 4, 5, 6], 'names', 10000, always).keys,
+      ...calloutPhrase(id, ['sl', 'sr'], 'numbers', 10000, always).keys,
       ...(roundCue(id, MAX_ROUNDS, { rng: always })?.keys ?? []),
       ...(roundCue(id, 1, { isLast: true, rng: always })?.keys ?? []),
       ...MOMENTS.flatMap((m) => momentPhrase(id, m, always)?.keys ?? []),

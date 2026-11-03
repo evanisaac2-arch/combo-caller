@@ -3,7 +3,7 @@
 
 import { TimerEngine } from './timer.js';
 import { buildSession, currentDrill, resolveCombos, WARNING_SEC } from './session.js';
-import { PUNCH_NAMES, parseCombo, formatCombo, comboNames, calloutGapMs } from './combos.js';
+import { PUNCH_NAMES, MOVE_NAMES, parseCombo, formatCombo, comboNames, calloutGapMs } from './combos.js';
 import { PERSONALITIES, roundCue, momentPhrase, calloutPhrase, clipScript, voiceTuning } from './personalities.js';
 import { createStorage, MAX_GET_READY_SEC } from './storage.js';
 import { createSpeech } from './speech.js';
@@ -528,20 +528,23 @@ function setComboMsg(text, isError = false) {
 }
 
 function buildKeypad() {
-  const pad = $('keypad');
-  for (const [num, name] of Object.entries(PUNCH_NAMES)) {
+  const key = (step, name) => {
     const btn = document.createElement('button');
     btn.className = 'btn key';
-    btn.dataset.punch = num;
-    btn.innerHTML = `<span class="key-num">${num}</span><span class="key-name">${name}</span>`;
-    pad.append(btn);
+    btn.dataset.punch = step;
+    btn.innerHTML = `<span class="key-num">${formatCombo([step])}</span><span class="key-name">${name}</span>`;
+    return btn;
+  };
+  for (const [num, name] of Object.entries(PUNCH_NAMES)) $('keypad').append(key(Number(num), name));
+  for (const [move, name] of Object.entries(MOVE_NAMES)) $('keypad-moves').append(key(move, name));
+  for (const pad of [$('keypad'), $('keypad-moves')]) {
+    pad.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-punch]');
+      if (!btn) return;
+      builder.push(parseCombo(btn.dataset.punch)[0]);
+      renderBuilder();
+    });
   }
-  pad.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-punch]');
-    if (!btn) return;
-    builder.push(Number(btn.dataset.punch));
-    renderBuilder();
-  });
 }
 
 function addCombo(punches) {
@@ -595,7 +598,7 @@ function bindCombos() {
     const input = $('combo-text');
     const punches = parseCombo(input.value);
     if (!punches) {
-      setComboMsg('Use punch numbers 1–6, like 1-2-3.', true);
+      setComboMsg('Use punch numbers 1–6 and SL/SR for slips, like 1-2-SL-2.', true);
       return;
     }
     addCombo(punches);

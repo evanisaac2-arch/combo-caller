@@ -13,8 +13,11 @@ backend, no build step and no dependencies.
   and a single jab half as long (never under 1 s).
 - Numbers (`1 2 3`) or names (`jab, cross, lead hook`).
   1 jab · 2 cross · 3 lead hook · 4 rear hook · 5 lead uppercut · 6 rear uppercut.
+  Slips go anywhere in a combo as `SL` / `SR` (`1-2-SL-2`) and are always said as "slip left" /
+  "slip right". A recorded voice pack made before slips existed says slip combos with the phone
+  voice until the pack's two slip clips are recorded.
 - Combos come from saved drill lists, picked with one tap on the Timer page (Combo Builder: tap
-  1–6 or type `1-2-3`). Random or in order, or repeat one combo for the whole round.
+  1–6 or SL/SR, or type `1-2-SL-2`). Random or in order, or repeat one combo for the whole round.
 - Seven preset drill lists to start with: Starter set, Jab & cross, Lead hook, Rear hook, Hook pairs,
   Uppercuts, Long combos (`PRESET_DRILLS` in `src/combos.js`). They're normal saved drills, so
   you can edit or delete them; a deleted preset doesn't come back. Presets added in a later

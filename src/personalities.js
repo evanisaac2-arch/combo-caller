@@ -3,7 +3,7 @@
 // clipScript) and fall back to the phone's TTS when no pack is loaded. Cues are about technique,
 // not effort, since the app is for technique work. Pure logic, no DOM.
 
-import { SPOKEN_NAMES } from './combos.js';
+import { SPOKEN_NAMES, MOVE_NAMES, isMove } from './combos.js';
 
 // Only add a technique cue after a combo when the gap to the next one leaves time to say it.
 export const PUSH_MIN_GAP_MS = 4000;
@@ -98,8 +98,10 @@ const line = (id, key, rng) => {
 };
 
 // Punches run together with no commas: a comma makes TTS pause after every punch, which sounds
-// nothing like a coach calling a combo.
-const punchPart = (p, style) => (style === 'names'
+// nothing like a coach calling a combo. Slips use the same clip in both styles.
+const punchPart = (p, style) => (isMove(p)
+  ? { key: `move-${p}`, text: MOVE_NAMES[p], combo: true, joiner: ' ' }
+  : style === 'names'
   ? { key: `name-${p}`, text: SPOKEN_NAMES[p], combo: true, joiner: ' ' }
   : { key: `num-${p}`, text: String(p), combo: true, joiner: ' ' });
 
@@ -134,7 +136,7 @@ export function calloutPhrase(id, punches, style, gapMs, rng = Math.random) {
 // Pause between two clips of a phrase: none between punches (each clip already keeps a few ms of
 // silence at its edges), longer before a line.
 export function gapBetweenMs(key, nextKey) {
-  const combo = (k) => k.startsWith('num-') || k.startsWith('name-');
+  const combo = (k) => /^(num|name|move)-/.test(k);
   return combo(key) && combo(nextKey) ? 0 : 250;
 }
 
@@ -158,6 +160,7 @@ export function clipScript(id) {
   for (const n of Object.keys(SPOKEN_NAMES)) {
     clips.push({ key: `num-${n}`, text: n }, { key: `name-${n}`, text: SPOKEN_NAMES[n] });
   }
+  for (const [m, text] of Object.entries(MOVE_NAMES)) clips.push({ key: `move-${m}`, text });
   if (p.roundIntro) {
     for (let r = 1; r <= MAX_ROUNDS; r++) clips.push({ key: `round-${r}`, text: p.roundIntro.replace('{n}', String(r)) });
   }
