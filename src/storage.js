@@ -58,15 +58,20 @@ function seedPresets(drills, seeded) {
   });
 }
 
-// Presets whose contents changed after they shipped: a saved copy still exactly as it was first
-// given is brought up to date; one the user has edited is left alone.
-const PRESET_REVISIONS = { 'preset-jab-rear-hook': { name: 'Jab & rear hook', combos: ['1-4'] } };
+// Presets whose contents changed after they shipped, with every earlier version: a saved copy
+// still exactly matching one of them is brought up to date; one the user has edited is left alone.
+const PRESET_REVISIONS = {
+  'preset-jab-rear-hook': [
+    { name: 'Jab & rear hook', combos: ['1-4'] },
+    { name: 'Hook pairs', combos: ['1-4', '2-3'] },
+  ],
+};
 
 function revisePresets(drills) {
   for (const drill of drills) {
-    const old = PRESET_REVISIONS[drill.id];
     const preset = PRESET_DRILLS.find((p) => p.id === drill.id);
-    if (!old || !preset || drill.name !== old.name || drill.combos.join() !== old.combos.join()) continue;
+    const isOld = (PRESET_REVISIONS[drill.id] ?? []).some((old) => drill.name === old.name && drill.combos.join() === old.combos.join());
+    if (!preset || !isOld) continue;
     drill.name = preset.name;
     drill.combos = [...preset.combos];
   }

@@ -48,7 +48,7 @@ export const PRESET_DRILLS = Object.freeze([
   { id: 'preset-jab-cross', name: 'Jab & cross', combos: ['1', '1-1', '1-2', '1-1-2', '2-1-2', '1-2-1-2'] },
   { id: 'preset-lead-hook', name: 'Lead hook', combos: ['1-3', '1-2-3', '3-2', '1-1-3', '2-3-2', '1-2-3-2'] },
   { id: 'preset-rear-hook', name: 'Rear hook', combos: ['1-4', '3-4', '1-3-4', '1-2-3-4', '5-4'] },
-  { id: 'preset-jab-rear-hook', name: 'Hook pairs', combos: ['1-4', '2-3'] },
+  { id: 'preset-jab-rear-hook', name: 'Hook pairs', combos: ['1-4', '2-3', 'SL-3', 'SR-4'] },
   { id: 'preset-body', name: 'Body work', combos: ['1-2-3b', '3b-3', '1-1b-2', '2-3b-2', '1-6b-3', '1-2-5b-2'] },
   { id: 'preset-defense', name: 'Defense & counter', combos: ['1-2-SL-2', '1-SR-3', '1-2-RR-3-2', '2-3-RL-3', '1-2-PL-2', '1-2-3-PV'] },
   { id: 'preset-uppercuts', name: 'Uppercuts', combos: ['1-6', '5-2', '6-3', '2-5-2', '1-6-3-2', '5-6'] },

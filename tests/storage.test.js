@@ -54,6 +54,10 @@ test('an unedited old Jab & rear hook preset becomes Hook pairs; an edited one i
   const revised = createStorage(backend).load().drills.find((d) => d.id === old.id);
   assert.deepEqual(revised, PRESET_DRILLS.find((d) => d.id === old.id));
 
+  const pairs = { id: old.id, name: 'Hook pairs', combos: ['1-4', '2-3'] };
+  backend.setItem(STORAGE_KEY, JSON.stringify({ settings: DEFAULT_SETTINGS, drills: [pairs], seededPresets: presetIds }));
+  assert.deepEqual(createStorage(backend).load().drills[0].combos, ['1-4', '2-3', 'SL-3', 'SR-4']);
+
   backend.setItem(STORAGE_KEY, JSON.stringify({ settings: DEFAULT_SETTINGS, drills: [{ ...old, combos: ['1-4', '1-1-4'] }], seededPresets: presetIds }));
   assert.deepEqual(createStorage(backend).load().drills[0].combos, ['1-4', '1-1-4']);
 });
